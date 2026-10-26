@@ -1,0 +1,1358 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hybrid Plan</title>
+<meta name="description" content="Running + strength plan tracker">
+<meta name="theme-color" content="#f6f6f3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111110" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Hybrid Plan">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/favicon-32.png">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f6f6f3;
+  --surface: #ffffff;
+  --surface-2: #f0efea;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #7a7873;
+  --line: #e1e0d9;
+  --axis: #c3c2b7;
+  --accent: #1c5cab;
+  --accent-ink: #ffffff;
+  --run: #2a78d6;
+  --lift: #eb6834;
+  --good: #0ca30c;
+  --good-ink: #006300;
+  --crit: #d03b3b;
+  --warn-bg: #fff4d6;
+  --warn-ink: #6b4a00;
+  --moved: #6250d6;
+  --skip: #a9a79e;
+  --upcoming: #e6e5df;
+  --plan-fill: #e9e8e2;
+  --shadow: 0 1px 2px rgba(0,0,0,.06), 0 2px 8px rgba(0,0,0,.04);
+  --radius: 14px;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #111110;
+    --surface: #1a1a19;
+    --surface-2: #242422;
+    --ink: #f0efec;
+    --ink-2: #c3c2b7;
+    --muted: #9a988f;
+    --line: #2c2c2a;
+    --axis: #45443f;
+    --accent: #3987e5;
+    --accent-ink: #ffffff;
+    --run: #3987e5;
+    --lift: #d95926;
+    --good: #0ca30c;
+    --good-ink: #3fc93f;
+    --crit: #e66767;
+    --warn-bg: #3a2f12;
+    --warn-ink: #ffd98a;
+    --moved: #9085e9;
+    --skip: #5f5e58;
+    --upcoming: #2a2a28;
+    --plan-fill: #2c2c2a;
+    --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #111110; --surface: #1a1a19; --surface-2: #242422; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #9a988f;
+  --line: #2c2c2a; --axis: #45443f; --accent: #3987e5; --run: #3987e5; --lift: #d95926; --good-ink: #3fc93f;
+  --crit: #e66767; --warn-bg: #3a2f12; --warn-ink: #ffd98a; --moved: #9085e9; --skip: #5f5e58; --upcoming: #2a2a28;
+  --plan-fill: #2c2c2a; --shadow: none;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 var(--font);
+  padding-bottom: calc(76px + env(safe-area-inset-bottom));
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+h1, h2, h3 { line-height: 1.2; margin: 0; }
+h1 { font-size: 1.35rem; }
+h2 { font-size: 1.1rem; }
+small, .small { font-size: .82rem; color: var(--ink-2); }
+.muted { color: var(--muted); }
+
+/* Header */
+.hdr {
+  position: sticky; top: 0; z-index: 20; background: var(--bg);
+  border-bottom: 1px solid var(--line); padding: calc(8px + env(safe-area-inset-top)) 16px 8px;
+}
+.hdr-in { max-width: 1240px; margin: 0 auto; display: flex; align-items: center; gap: 12px; }
+.brand { font-weight: 700; font-size: 1.05rem; flex: 1; min-width: 0; }
+.brand small { display: block; font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sync { display: flex; align-items: center; gap: 8px; }
+.sync-status { font-size: .78rem; color: var(--ink-2); text-align: right; max-width: 150px; line-height: 1.2; }
+.sync-status.err { color: var(--crit); }
+.btn-sync {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--surface); font-weight: 600; font-size: .9rem;
+}
+.btn-sync svg { width: 16px; height: 16px; }
+.btn-sync.spin svg { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Navigation */
+.nav {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: flex; background: var(--surface);
+  border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom);
+}
+.nav button {
+  flex: 1; border: 0; background: none; padding: 8px 0 10px; display: flex; flex-direction: column; align-items: center;
+  gap: 2px; font-size: .72rem; color: var(--muted); min-height: 58px;
+}
+.nav button svg { width: 24px; height: 24px; }
+.nav button[aria-current="page"] { color: var(--accent); font-weight: 600; }
+
+main { max-width: 680px; margin: 0 auto; padding: 14px 16px 24px; }
+main.wide { max-width: 1240px; }
+
+/* Day / week header */
+.pager { display: flex; align-items: center; gap: 8px; margin: 4px 0 12px; }
+.pager > div { flex: 1; text-align: center; min-width: 0; }
+.pager p { margin: 2px 0 0; color: var(--ink-2); font-size: .9rem; }
+.icon-btn {
+  width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface);
+  font-size: 1.3rem; display: inline-flex; align-items: center; justify-content: center; flex: none;
+}
+.link-btn { border: 0; background: none; color: var(--accent); font-weight: 600; padding: 8px 4px; min-height: 40px; }
+.center { text-align: center; }
+
+/* Cards */
+.card {
+  background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid var(--line);
+  padding: 14px 14px 12px; margin-bottom: 14px; border-left: 5px solid var(--run);
+}
+.card.lift { border-left-color: var(--lift); }
+.card.is-done { border-left-color: var(--good); }
+.card.is-skipped { opacity: .7; border-left-color: var(--skip); }
+.card-top { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.badge, .chip {
+  display: inline-flex; align-items: center; gap: 4px; font-size: .74rem; font-weight: 600; padding: 2px 8px;
+  border-radius: 999px; background: var(--surface-2); color: var(--ink-2); letter-spacing: .01em;
+}
+.badge::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--run); }
+.badge.lift::before { background: var(--lift); }
+.chip.moved { color: var(--moved); }
+.chip.test { background: var(--warn-bg); color: var(--warn-ink); }
+.chip.race { background: var(--accent); color: var(--accent-ink); }
+.card h2 { font-size: 1.12rem; margin: 2px 0 6px; }
+.details { margin: 0 0 12px; padding-left: 18px; font-size: .93rem; color: var(--ink); }
+.details li { margin: 3px 0; }
+.details li.hdr-line { list-style: none; margin-left: -18px; font-weight: 600; color: var(--warn-ink); background: var(--warn-bg); padding: 4px 8px; border-radius: 8px; }
+.btn-done {
+  width: 100%; min-height: 56px; border-radius: 12px; border: 0; background: var(--accent); color: var(--accent-ink);
+  font-weight: 700; font-size: 1.1rem;
+}
+.btn-done.is-done { background: color-mix(in srgb, var(--good) 16%, var(--surface)); color: var(--good-ink); border: 1px solid var(--good); }
+.btn-done.is-skipped { background: var(--surface-2); color: var(--ink-2); }
+.card-actions { display: flex; gap: 6px; margin-top: 8px; }
+.card-actions button, .btn {
+  flex: 1; min-height: 44px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface);
+  font-weight: 600; font-size: .92rem; padding: 0 12px;
+}
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.danger { color: var(--crit); }
+.btn:disabled { opacity: .5; }
+.logged { margin-top: 10px; font-size: .86rem; color: var(--ink-2); background: var(--surface-2); padding: 8px 10px; border-radius: 10px; }
+
+/* Log form */
+.logform { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 12px; display: grid; gap: 12px; }
+.logform label, .fld { display: grid; gap: 4px; font-size: .86rem; font-weight: 600; color: var(--ink-2); }
+.logform input, .logform select, .logform textarea, .field {
+  width: 100%; min-height: 44px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg);
+  padding: 8px 10px; font-size: 16px; font-weight: 400; color: var(--ink);
+}
+.logform textarea { min-height: 70px; resize: vertical; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.rpe { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; }
+.rpe label { position: relative; }
+.rpe input { position: absolute; opacity: 0; pointer-events: none; }
+.rpe span {
+  display: flex; align-items: center; justify-content: center; min-height: 40px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--bg); color: var(--ink); font-weight: 600;
+}
+.rpe input:checked + span { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.lift-row { display: grid; grid-template-columns: 1fr 84px 16px 70px; gap: 6px; align-items: center; font-size: .9rem; color: var(--ink); }
+.lift-row input { min-height: 40px; }
+.form-sub { font-weight: 700; font-size: .9rem; color: var(--ink); margin-top: 2px; }
+
+/* Banner */
+.banner { background: var(--warn-bg); color: var(--warn-ink); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 14px; }
+.banner-head { display: flex; align-items: center; gap: 8px; }
+.banner-head strong { flex: 1; }
+.banner-head button { border: 0; background: none; color: inherit; font-weight: 700; text-decoration: underline; min-height: 40px; }
+.missed-row { display: flex; align-items: center; gap: 6px; padding: 8px 0; border-top: 1px solid color-mix(in srgb, var(--warn-ink) 20%, transparent); }
+.missed-row > div { flex: 1; min-width: 0; color: var(--ink); }
+.missed-row b { display: block; font-size: .92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.missed-row button { min-height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; padding: 0 12px; color: var(--ink); }
+.empty { background: var(--surface); border: 1px dashed var(--axis); border-radius: var(--radius); padding: 20px 16px; text-align: center; color: var(--ink-2); }
+.empty h2 { color: var(--ink); margin-bottom: 4px; }
+
+/* Week view */
+.blocks { display: flex; gap: 3px; margin: 0 0 12px; }
+.blocks div { flex: 1; text-align: center; font-size: .68rem; padding: 6px 2px; border-radius: 6px; background: var(--surface-2); color: var(--muted); line-height: 1.15; }
+.blocks div.on { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+.weeknote { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font-size: .9rem; margin: 0 0 12px; color: var(--ink-2); }
+.meter { height: 8px; background: var(--surface-2); border-radius: 99px; overflow: hidden; margin: 4px 0 14px; }
+.meter i { display: block; height: 100%; background: var(--good); border-radius: 99px; }
+.day { display: grid; grid-template-columns: 56px 1fr; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+.day.today .dname { color: var(--accent); }
+.dname { font-weight: 700; font-size: .95rem; }
+.dname small { display: block; font-weight: 400; }
+.srow { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 8px; overflow: hidden; }
+.srow-main { display: flex; align-items: center; gap: 8px; width: 100%; border: 0; background: none; text-align: left; padding: 10px 12px; min-height: 48px; }
+.srow-main .t { flex: 1; min-width: 0; font-weight: 600; font-size: .95rem; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--run); flex: none; }
+.dot.lift { background: var(--lift); }
+.st { font-size: .74rem; font-weight: 700; padding: 2px 8px; border-radius: 99px; background: var(--surface-2); color: var(--ink-2); flex: none; }
+.st-done { color: var(--good-ink); background: color-mix(in srgb, var(--good) 15%, var(--surface)); }
+.st-missed { color: var(--crit); background: color-mix(in srgb, var(--crit) 12%, var(--surface)); }
+.st-moved { color: var(--moved); background: color-mix(in srgb, var(--moved) 14%, var(--surface)); }
+.st-skipped { color: var(--ink-2); text-decoration: line-through; }
+.srow-body { padding: 0 12px 12px; }
+.srow-actions { display: flex; gap: 6px; padding: 0 12px 10px; }
+.srow-actions button { flex: 1; min-height: 42px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; font-size: .88rem; }
+.srow-actions button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.ghost { font-size: .84rem; color: var(--muted); padding: 4px 2px 8px; font-style: italic; }
+.rest { color: var(--muted); font-size: .92rem; padding: 12px 0; }
+
+/* Modal */
+.modal-bg { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.45); display: flex; align-items: flex-end; justify-content: center; }
+.modal {
+  background: var(--surface); width: 100%; max-width: 520px; border-radius: 18px 18px 0 0; padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+  max-height: 90vh; overflow: auto;
+}
+@media (min-width: 600px) { .modal-bg { align-items: center; } .modal { border-radius: 18px; } }
+.modal p { margin: 4px 0 12px; color: var(--ink-2); }
+.quick { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.quick button { min-height: 40px; border-radius: 99px; border: 1px solid var(--line); background: var(--bg); padding: 0 14px; font-weight: 600; font-size: .88rem; }
+.quick button.on { border-color: var(--accent); color: var(--accent); }
+.warns { background: var(--warn-bg); color: var(--warn-ink); border-radius: 12px; padding: 10px 12px; margin: 12px 0; font-size: .9rem; }
+.warns ul { margin: 6px 0 0; padding-left: 18px; }
+.oknote { color: var(--good-ink); font-size: .9rem; margin: 12px 0; }
+.modal-actions { display: flex; gap: 8px; margin-top: 14px; }
+
+/* Toast */
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(84px + env(safe-area-inset-bottom)); z-index: 60;
+  background: var(--ink); color: var(--bg); border-radius: 12px; padding: 10px 12px 10px 16px; display: flex; gap: 12px;
+  align-items: center; box-shadow: 0 6px 24px rgba(0,0,0,.25); max-width: calc(100% - 32px); font-size: .92rem;
+}
+.toast button { border: 0; background: none; color: var(--bg); font-weight: 700; text-decoration: underline; min-height: 36px; }
+
+/* Settings */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; margin-bottom: 14px; }
+.panel h2 { margin-bottom: 8px; }
+.panel p { margin: 6px 0; font-size: .92rem; color: var(--ink-2); }
+.panel .btn { margin-top: 8px; width: 100%; }
+.panel code { font-size: .85rem; word-break: break-all; }
+.warnbox { background: var(--warn-bg); color: var(--warn-ink); padding: 10px 12px; border-radius: 10px; font-size: .88rem; margin: 10px 0; }
+textarea.code { width: 100%; min-height: 80px; font: 13px ui-monospace, Menlo, monospace; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); padding: 8px; }
+.stack { display: grid; gap: 8px; }
+ol.steps { margin: 6px 0 4px; padding-left: 20px; font-size: .9rem; color: var(--ink-2); }
+
+/* Progress */
+.dash { display: grid; gap: 14px; grid-template-columns: 1fr; }
+.tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+.tile .v { font-size: 1.7rem; font-weight: 700; line-height: 1.1; margin-top: 2px; }
+.tile .k { font-size: .8rem; color: var(--ink-2); font-weight: 600; }
+.tile .s { font-size: .78rem; color: var(--muted); }
+.pcard { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; min-width: 0; }
+.pcard h2 { font-size: 1rem; margin-bottom: 2px; }
+.pcard > p.sub { margin: 0 0 10px; font-size: .82rem; color: var(--muted); }
+.chart { width: 100%; min-height: 40px; }
+.chart svg { display: block; overflow: visible; }
+.chart text { font-family: var(--font); font-size: 11px; fill: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .8rem; color: var(--ink-2); margin: 0 0 8px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.legend i.ln { height: 3px; border-radius: 2px; vertical-align: 3px; width: 14px; }
+.legend i.dash { background: repeating-linear-gradient(90deg, var(--muted) 0 4px, transparent 4px 7px) !important; height: 2px; vertical-align: 3px; width: 16px; }
+details.tbl { margin-top: 8px; font-size: .82rem; }
+details.tbl summary { cursor: pointer; color: var(--accent); font-weight: 600; min-height: 32px; display: flex; align-items: center; }
+details.tbl table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+details.tbl th, details.tbl td { text-align: left; padding: 3px 6px; border-bottom: 1px solid var(--line); }
+.heat { display: grid; grid-template-columns: 64px repeat(7, 1fr); gap: 3px; font-size: .7rem; }
+.heat .hd { color: var(--muted); text-align: center; }
+.heat .wl { color: var(--ink-2); white-space: nowrap; align-self: center; font-variant-numeric: tabular-nums; }
+.heat .wl.cur { color: var(--accent); font-weight: 700; }
+.hc { aspect-ratio: 1.6; border-radius: 4px; background: var(--surface-2); border: 0; padding: 0; position: relative; min-height: 16px; }
+.hc.done { background: var(--good); }
+.hc.missed { background: var(--crit); }
+.hc.moved { background: var(--moved); }
+.hc.skipped { background: var(--skip); }
+.hc.upcoming { background: var(--upcoming); box-shadow: inset 0 0 0 1px var(--axis); }
+.hc.rest { background: transparent; box-shadow: inset 0 0 0 1px var(--line); }
+.hc.today { outline: 2px solid var(--ink); outline-offset: 1px; }
+.hc.race::after { content: "\2605"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--ink); font-size: 10px; }
+.hc.race.done::after, .hc.race.missed::after, .hc.race.moved::after { color: #fff; }
+.ladder { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 4px; }
+.ladder li { display: flex; gap: 8px; align-items: center; font-size: .86rem; color: var(--muted); }
+.ladder li::before { content: ""; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--axis); flex: none; }
+.ladder li.past { color: var(--ink-2); }
+.ladder li.past::before { background: var(--good); border-color: var(--good); }
+.ladder li.cur { color: var(--ink); font-weight: 700; }
+.ladder li.cur::before { background: var(--accent); border-color: var(--accent); }
+.nextstep { margin-top: 8px; font-size: .86rem; background: var(--surface-2); border-radius: 10px; padding: 8px 10px; }
+.notes { list-style: none; margin: 0; padding: 0; }
+.notes li { border-top: 1px solid var(--line); padding: 8px 0; font-size: .9rem; }
+.notes li:first-child { border-top: 0; }
+.notes .meta { font-size: .78rem; color: var(--muted); display: flex; gap: 8px; flex-wrap: wrap; }
+.rpechip { font-weight: 700; color: var(--ink); }
+.two { display: grid; gap: 14px; grid-template-columns: 1fr; }
+.minis { display: grid; gap: 12px; grid-template-columns: 1fr; }
+.mini h3 { font-size: .86rem; margin-bottom: 2px; }
+.tip {
+  position: fixed; z-index: 70; pointer-events: none; background: var(--ink); color: var(--bg); font-size: .8rem;
+  padding: 6px 9px; border-radius: 8px; max-width: 240px; box-shadow: 0 4px 16px rgba(0,0,0,.2); display: none;
+}
+.hidden { display: none !important; }
+
+@media (min-width: 900px) {
+  body { padding-bottom: 24px; }
+  .nav { position: static; border: 0; background: none; padding: 0; gap: 4px; }
+  .nav button { flex: none; flex-direction: row; min-height: 40px; padding: 0 12px; font-size: .92rem; border-radius: 10px; gap: 6px; }
+  .nav button svg { width: 18px; height: 18px; }
+  .nav button[aria-current="page"] { background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+  .toast { bottom: 24px; }
+  .sync-status { max-width: 220px; }
+  .dash { grid-template-columns: repeat(12, 1fr); }
+  .dash > .tiles { grid-column: 1 / -1; grid-template-columns: repeat(5, 1fr); }
+  .dash > .span-12 { grid-column: span 12; }
+  .dash > .span-7 { grid-column: span 7; }
+  .dash > .span-5 { grid-column: span 5; }
+  .dash > .span-6 { grid-column: span 6; }
+  .minis { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+  .two { grid-template-columns: 1fr 1fr; }
+  .hc { aspect-ratio: auto; height: 18px; min-height: 0; }
+  .heat { gap: 2px 3px; }
+}
+@media (max-width: 380px) {
+  .sync-status { max-width: 92px; }
+  .lift-row { grid-template-columns: 1fr 70px 12px 58px; }
+}
+</style>
+</head>
+<body>
+<header class="hdr">
+  <div class="hdr-in">
+    <div class="brand">Hybrid Plan<small id="hdr-sub"></small></div>
+    <nav class="nav" id="nav" aria-label="Main">
+      <button data-a="view" data-v="today"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/><path d="M9 15l2 2 4-4"/></svg>Today</button>
+      <button data-a="view" data-v="week"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>Week</button>
+      <button data-a="view" data-v="progress"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Progress</button>
+      <button data-a="view" data-v="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</button>
+    </nav>
+    <div class="sync">
+      <span class="sync-status" id="sync-status" aria-live="polite"></span>
+      <button class="btn-sync" id="btn-sync" data-a="sync" aria-label="Sync now"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-15.5 6.3L3 16M3 12a9 9 0 0 1 15.5-6.3L21 8"/><path d="M21 3v5h-5M3 21v-5h5"/></svg>Sync</button>
+    </div>
+  </div>
+</header>
+<main id="view"></main>
+<div id="modal-root"></div>
+<div id="toast-root"></div>
+<div class="tip" id="tip" role="tooltip"></div>
+<script>
+'use strict';
+/*PLAN-DATA-START*/const PLAN={"start":"2026-10-26","end":"2027-02-14","races":[{"name":"10K","date":"2026-11-29"},{"name":"Half marathon","date":"2027-02-14"}],"blocks":[{"name":"10K build","start":"2026-10-26","end":"2026-11-29","first":1,"last":5},{"name":"Half marathon recovery","start":"2026-11-30","end":"2026-12-06","first":6,"last":6},{"name":"Half build 1","start":"2026-12-07","end":"2027-01-03","first":7,"last":10},{"name":"Half build 2","start":"2027-01-04","end":"2027-01-31","first":11,"last":14},{"name":"Taper","start":"2027-02-01","end":"2027-02-14","first":15,"last":16}],"weeks":[{"n":1,"start":"2026-10-26","block":"10K build","label":"10K build, week 1","note":"Baseline pull-up and push-up test on Monday. Pick weights that leave 1-3 reps in reserve this first week.","deload":false,"raceWeek":false,"test":true},{"n":2,"start":"2026-11-02","block":"10K build","label":"10K build, week 2","note":"","deload":false,"raceWeek":false,"test":false},{"n":3,"start":"2026-11-09","block":"10K build","label":"10K build, week 3","note":"Biggest week of the 10K block. Test on Monday.","deload":false,"raceWeek":false,"test":true},{"n":4,"start":"2026-11-16","block":"10K build","label":"10K sharpen","note":"Sharpen week: running gets shorter and sharper, lower-body lift sets cut by about a third.","deload":false,"raceWeek":false,"test":false},{"n":5,"start":"2026-11-23","block":"10K build","label":"10K race week","note":"RACE WEEK. No lifting Wed, rest Thu and Sat. 10K on Sunday Nov 29.","deload":false,"raceWeek":true,"test":true},{"n":6,"start":"2026-11-30","block":"Half marathon recovery","label":"Half marathon recovery week","note":"Post-race recovery: easy runs only, lifts at about 70% volume.","deload":false,"raceWeek":false,"test":false},{"n":7,"start":"2026-12-07","block":"Half build 1","label":"Half build 1, week 1","note":"Half marathon build starts. Intervals at 10K effort (Z4) now, not Z5. Test on Monday.","deload":false,"raceWeek":false,"test":true},{"n":8,"start":"2026-12-14","block":"Half build 1","label":"Half build 1, week 2","note":"","deload":false,"raceWeek":false,"test":false},{"n":9,"start":"2026-12-21","block":"Half build 1","label":"Half build 1, step-back","note":"STEP-BACK + DELOAD week (holidays). Lower running volume, about 35% fewer lifting sets at the same loads. Fri is Christmas Day: move the tempo to Wed morning or skip it, no guilt.","deload":true,"raceWeek":false,"test":true},{"n":10,"start":"2026-12-28","block":"Half build 1","label":"Half build 1, week 3","note":"Fri is New Year's Day. If the night before was late, swap Fri and Sat or run it easy.","deload":false,"raceWeek":false,"test":false},{"n":11,"start":"2027-01-04","block":"Half build 2","label":"Half build 2, week 1","note":"Reps get longer, pace a little calmer (10K-to-half). Test on Monday.","deload":false,"raceWeek":false,"test":true},{"n":12,"start":"2027-01-11","block":"Half build 2","label":"Half build 2, week 2","note":"First long run with a half-marathon-effort finish.","deload":false,"raceWeek":false,"test":false},{"n":13,"start":"2027-01-18","block":"Half build 2","label":"Half build 2, step-back","note":"STEP-BACK + DELOAD week. About 35% fewer lifting sets at the same loads. Test on Monday.","deload":true,"raceWeek":false,"test":true},{"n":14,"start":"2027-01-25","block":"Half build 2","label":"Half build 2, peak","note":"Peak week. Last full-volume lifting week.","deload":false,"raceWeek":false,"test":false},{"n":15,"start":"2027-02-01","block":"Taper","label":"Taper, week 1","note":"TAPER: run volume down about 30%, intervals short and sharp, lifting at half volume. Saturday is the last lower-body lift (8 days out). Final test on Monday.","deload":false,"raceWeek":false,"test":true},{"n":16,"start":"2027-02-08","block":"Taper","label":"Half marathon race week","note":"RACE WEEK. No lower-body lifting, rest Wed, Thu and Sat. Half marathon on Sunday Feb 14.","deload":false,"raceWeek":true,"test":false}],"sessions":[{"id":"w01-mon-run","date":"2026-10-26","week":1,"type":"run","kind":"easy","title":"Easy recovery run","zone":"Z1-2","details":["30 min easy, Z1-2 (RPE 2-3, chatty, full sentences)","Too packed today? Do it Wed morning before Lift A."],"plannedMin":30,"plannedKm":4.6},{"id":"w01-mon-lift","date":"2026-10-26","week":1,"type":"lift","kind":"lift","lift":"B","title":"Lift B · Upper body, back focus (test day)","details":["Warm-up (5 min): 2 min row erg, 10 band pull-aparts, 10 scap pull-ups, 1 light set of rows","TEST DAY (about 8 min, replaces the pull-up progression sets, log it in the app):","Pull-up test: max dead hang (s), rest 2 min, then 1 slowest controlled negative (s). Note the lightest band you can do 5 clean reps with. If your negative is 15 s or more, try 1 strict rep.","Push-up test: max clean reps at your current incline. If 10 or more, rest 3 min and test one step lower.","1. Superset: Chest-supported row 3 x 8-12 + Incline push-up (your current step) 2 x 6-10","2. Superset: Neutral-grip lat pulldown 3 x 8-12 + Landmine press or neutral-grip DB press 3 x 8-10","3. Superset: Lateral raise 3 x 12-15 + Face pull 3 x 12-15","4. Superset: Biceps curl 2 x 10-12 + Triceps extension 2 x 10-12","Abs (superset): Hanging knee raise 3 x 8-12 + Pallof press 3 x 10/side","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: stop 1-2 reps shy of failure. Add load when every set hits the top of the range."],"estMinutes":55,"keyLifts":["row","lat_pulldown"],"test":true},{"id":"w01-tue-run","date":"2026-10-27","week":1,"type":"run","kind":"intervals","title":"Intervals 6 x 800 m","zone":"Z5 (RPE 9","details":["Warm-up: 2 km easy Z2 + 4 x 20 s relaxed strides","Main: 6 x 800 m at Z5 (RPE 9, one word at a time), 2 min jog between","Cooldown: 10 min easy jog"],"plannedKm":9.7,"plannedMin":58},{"id":"w01-wed-lift","date":"2026-10-28","week":1,"type":"lift","kind":"lift","lift":"A","title":"Lift A · Running legs + prevention","details":["Warm-up (6 min): 3 min bike, 10 glute bridges, 10 leg swings each way, 1 light set of split squats","Skill (5 min, right after warm-up): 2-3 easy sets of your pull-up step + 2 sets of your push-up step. Never to failure.","1. Bulgarian split squat 3 x 6-10/leg","2. Superset: Leg press 3 x 8 + Tibialis raise 3 x 15","3. Single-leg RDL 3 x 8-10/leg","4. Superset: Hip abduction 3 x 12-15 + Copenhagen plank 2 x 25 s/side","5. Calf raise, straight knee 3 x 8-12","6. Calf raise, bent knee 2 x 12-15","Abs (superset): Side plank 2 x 30-45 s/side + Reverse crunch 2 x 12","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: moderate, 2-3 reps in reserve. Add load when every set hits the top of the range."],"estMinutes":50,"keyLifts":["split_squat","leg_press"],"test":false},{"id":"w01-fri-run","date":"2026-10-30","week":1,"type":"run","kind":"tempo","title":"Tempo 35 min","zone":"Z3-4","details":["Warm-up: 2 km easy Z2","Main: 35 min comfortably hard, top Z3 to low Z4 (RPE 6-7, 3-4 words)","Cooldown: 10 min easy jog"],"plannedKm":9.8,"plannedMin":58},{"id":"w01-sat-lift","date":"2026-10-31","week":1,"type":"lift","kind":"lift","lift":"C","title":"Lift C · Glute focus","details":["Warm-up (6 min): 3 min bike or incline walk, 15 banded glute bridges, 10 banded side steps each way, 2 ramp-up hip thrust sets","Skill (5 min, right after warm-up): 2-3 easy sets of your pull-up step + 2 sets of your push-up step. Never to failure.","1. Hip thrust (heavy, 1 s pause at top) 4 x 6-10","2. 45 degree back extension (glute bias) or cable pull-through 3 x 10-12","3. Walking lunge, long stride 3 x 10/leg","4. Seated leg curl 3 x 10-15","5. Superset: Cable kickback or hip abduction 3 x 15 + Adductor machine 2 x 12-15","Abs (superset): Cable crunch 3 x 12 + Plank 3 x 30-45 s","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: stop 1-2 reps shy of failure. Add load when every set hits the top of the range."],"estMinutes":50,"keyLifts":["hip_thrust"],"test":false},{"id":"w01-sun-run","date":"2026-11-01","week":1,"type":"run","kind":"long","title":"Long run 10 km","zone":"Z2","details":["10 km mostly Z2 (RPE 3-4, full sentences)","Keep it slow. If HR drifts into Z3 on the easy part, walk 30 s."],"plannedKm":10.0,"plannedMin":65},{"id":"w02-mon-run","date":"2026-11-02","week":2,"type":"run","kind":"easy","title":"Easy recovery run","zone":"Z1-2","details":["30 min easy, Z1-2 (RPE 2-3, chatty, full sentences)","Too packed today? Do it Wed morning before Lift A."],"plannedMin":30,"plannedKm":4.6},{"id":"w02-mon-lift","date":"2026-11-02","week":2,"type":"lift","kind":"lift","lift":"B","title":"Lift B · Upper body, back focus","details":["Warm-up (5 min): 2 min row erg, 10 band pull-aparts, 10 scap pull-ups, 1 light set of rows","1. Pull-up progression (your current step) 4 x 3-5","2. Superset: Chest-supported row 3 x 8-12 + Incline push-up (your current step) 3 x 6-10","3. Superset: Neutral-grip lat pulldown 3 x 8-12 + Landmine press or neutral-grip DB press 3 x 8-10","4. Superset: Lateral raise 3 x 12-15 + Face pull 3 x 12-15","5. Superset: Biceps curl 2 x 10-12 + Triceps extension 2 x 10-12","Abs (superset): Hanging knee raise 3 x 8-12 + Pallof press 3 x 10/side","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: stop 1-2 reps shy of failure. Add load when every set hits the top of the range."],"estMinutes":55,"keyLifts":["row","lat_pulldown"],"test":false},{"id":"w02-tue-run","date":"2026-11-03","week":2,"type":"run","kind":"fartlek","title":"Fartlek 8 x (2 min / 1 min)","zone":"Z4-5","details":["Warm-up: 2 km easy Z2","Main: 8 x (2 min hard, Z4-5 (RPE 8-9) / 1 min easy jog Z1-2)","Cooldown: 10 min easy jog"],"plannedKm":7.8,"plannedMin":47},{"id":"w02-wed-lift","date":"2026-11-04","week":2,"type":"lift","kind":"lift","lift":"A","title":"Lift A · Running legs + prevention","details":["Warm-up (6 min): 3 min bike, 10 glute bridges, 10 leg swings each way, 1 light set of split squats","Skill (5 min, right after warm-up): 2-3 easy sets of your pull-up step + 2 sets of your push-up step. Never to failure.","1. Bulgarian split squat 3 x 6-10/leg","2. Superset: Leg press 3 x 8 + Tibialis raise 3 x 15","3. Single-leg RDL 3 x 8-10/leg","4. Superset: Hip abduction 3 x 12-15 + Copenhagen plank 2 x 25 s/side","5. Calf raise, straight knee 3 x 8-12","6. Calf raise, bent knee 2 x 12-15","Abs (superset): Side plank 2 x 30-45 s/side + Reverse crunch 2 x 12","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: moderate, 2-3 reps in reserve. Add load when every set hits the top of the range."],"estMinutes":50,"keyLifts":["split_squat","leg_press"],"test":false},{"id":"w02-fri-run","date":"2026-11-06","week":2,"type":"run","kind":"tempo","title":"Tempo 40 min","zone":"Z3-4","details":["Warm-up: 2 km easy Z2","Main: 40 min comfortably hard, top Z3 to low Z4 (RPE 6-7, 3-4 words)","Cooldown: 10 min easy jog"],"plannedKm":10.7,"plannedMin":63},{"id":"w02-sat-lift","date":"2026-11-07","week":2,"type":"lift","kind":"lift","lift":"C","title":"Lift C · Glute focus","details":["Warm-up (6 min): 3 min bike or incline walk, 15 banded glute bridges, 10 banded side steps each way, 2 ramp-up hip thrust sets","Skill (5 min, right after warm-up): 2-3 easy sets of your pull-up step + 2 sets of your push-up step. Never to failure.","1. Hip thrust (heavy, 1 s pause at top) 4 x 6-10","2. 45 degree back extension (glute bias) or cable pull-through 3 x 10-12","3. Walking lunge, long stride 3 x 10/leg","4. Seated leg curl 3 x 10-15","5. Superset: Cable kickback or hip abduction 3 x 15 + Adductor machine 2 x 12-15","Abs (superset): Cable crunch 3 x 12 + Plank 3 x 30-45 s","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: stop 1-2 reps shy of failure. Add load when every set hits the top of the range."],"estMinutes":50,"keyLifts":["hip_thrust"],"test":false},{"id":"w02-sun-run","date":"2026-11-08","week":2,"type":"run","kind":"long","title":"Long run 11 km","zone":"Z2","details":["11 km mostly Z2 (RPE 3-4, full sentences)","Keep it slow. If HR drifts into Z3 on the easy part, walk 30 s."],"plannedKm":11.0,"plannedMin":72},{"id":"w03-mon-run","date":"2026-11-09","week":3,"type":"run","kind":"easy","title":"Easy recovery run","zone":"Z1-2","details":["30 min easy, Z1-2 (RPE 2-3, chatty, full sentences)","Too packed today? Do it Wed morning before Lift A."],"plannedMin":30,"plannedKm":4.6},{"id":"w03-mon-lift","date":"2026-11-09","week":3,"type":"lift","kind":"lift","lift":"B","title":"Lift B · Upper body, back focus (test day)","details":["Warm-up (5 min): 2 min row erg, 10 band pull-aparts, 10 scap pull-ups, 1 light set of rows","TEST DAY (about 8 min, replaces the pull-up progression sets, log it in the app):","Pull-up test: max dead hang (s), rest 2 min, then 1 slowest controlled negative (s). Note the lightest band you can do 5 clean reps with. If your negative is 15 s or more, try 1 strict rep.","Push-up test: max clean reps at your current incline. If 10 or more, rest 3 min and test one step lower.","1. Superset: Chest-supported row 3 x 8-12 + Incline push-up (your current step) 2 x 6-10","2. Superset: Neutral-grip lat pulldown 3 x 8-12 + Landmine press or neutral-grip DB press 3 x 8-10","3. Superset: Lateral raise 3 x 12-15 + Face pull 3 x 12-15","4. Superset: Biceps curl 2 x 10-12 + Triceps extension 2 x 10-12","Abs (superset): Hanging knee raise 3 x 8-12 + Pallof press 3 x 10/side","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: stop 1-2 reps shy of failure. Add load when every set hits the top of the range."],"estMinutes":55,"keyLifts":["row","lat_pulldown"],"test":true},{"id":"w03-tue-run","date":"2026-11-10","week":3,"type":"run","kind":"intervals","title":"Intervals 5 x 1 km","zone":"Z5 (RPE 9","details":["Warm-up: 2 km easy Z2 + 4 x 20 s relaxed strides","Main: 5 x 1 km at Z5 (RPE 9, one word at a time), 2 min jog between","Cooldown: 10 min easy jog"],"plannedKm":9.6,"plannedMin":57},{"id":"w03-wed-lift","date":"2026-11-11","week":3,"type":"lift","kind":"lift","lift":"A","title":"Lift A · Running legs + prevention","details":["Warm-up (6 min): 3 min bike, 10 glute bridges, 10 leg swings each way, 1 light set of split squats","Skill (5 min, right after warm-up): 2-3 easy sets of your pull-up step + 2 sets of your push-up step. Never to failure.","1. Bulgarian split squat 3 x 6-10/leg","2. Superset: Leg press 3 x 8 + Tibialis raise 3 x 15","3. Single-leg RDL 3 x 8-10/leg","4. Superset: Hip abduction 3 x 12-15 + Copenhagen plank 2 x 25 s/side","5. Calf raise, straight knee 3 x 8-12","6. Calf raise, bent knee 2 x 12-15","Abs (superset): Side plank 2 x 30-45 s/side + Reverse crunch 2 x 12","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: moderate, 2-3 reps in reserve. Add load when every set hits the top of the range."],"estMinutes":50,"keyLifts":["split_squat","leg_press"],"test":false},{"id":"w03-fri-run","date":"2026-11-13","week":3,"type":"run","kind":"tempo","title":"Tempo 45 min","zone":"Z3-4","details":["Warm-up: 2 km easy Z2","Main: 45 min comfortably hard, top Z3 to low Z4 (RPE 6-7, 3-4 words)","Cooldown: 10 min easy jog"],"plannedKm":11.6,"plannedMin":68},{"id":"w03-sat-lift","date":"2026-11-14","week":3,"type":"lift","kind":"lift","lift":"C","title":"Lift C · Glute focus","details":["Warm-up (6 min): 3 min bike or incline walk, 15 banded glute bridges, 10 banded side steps each way, 2 ramp-up hip thrust sets","Skill (5 min, right after warm-up): 2-3 easy sets of your pull-up step + 2 sets of your push-up step. Never to failure.","1. Hip thrust (heavy, 1 s pause at top) 4 x 6-10","2. 45 degree back extension (glute bias) or cable pull-through 3 x 10-12","3. Walking lunge, long stride 3 x 10/leg","4. Seated leg curl 3 x 10-15","5. Superset: Cable kickback or hip abduction 3 x 15 + Adductor machine 2 x 12-15","Abs (superset): Cable crunch 3 x 12 + Plank 3 x 30-45 s","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: stop 1-2 reps shy of failure. Add load when every set hits the top of the range."],"estMinutes":50,"keyLifts":["hip_thrust"],"test":false},{"id":"w03-sun-run","date":"2026-11-15","week":3,"type":"run","kind":"long","title":"Long run 12 km","zone":"Z2","details":["12 km mostly Z2 (RPE 3-4, full sentences)","Keep it slow. If HR drifts into Z3 on the easy part, walk 30 s."],"plannedKm":12.0,"plannedMin":78},{"id":"w04-mon-run","date":"2026-11-16","week":4,"type":"run","kind":"easy","title":"Easy recovery run","zone":"Z1-2","details":["25 min easy, Z1-2 (RPE 2-3, chatty, full sentences)","Too packed today? Do it Wed morning before Lift A."],"plannedMin":25,"plannedKm":3.8},{"id":"w04-mon-lift","date":"2026-11-16","week":4,"type":"lift","kind":"lift","lift":"B","title":"Lift B · Upper body, back focus","details":["Warm-up (5 min): 2 min row erg, 10 band pull-aparts, 10 scap pull-ups, 1 light set of rows","1. Pull-up progression (your current step) 4 x 3-5","2. Superset: Chest-supported row 3 x 8-12 + Incline push-up (your current step) 3 x 6-10","3. Superset: Neutral-grip lat pulldown 3 x 8-12 + Landmine press or neutral-grip DB press 3 x 8-10","4. Superset: Lateral raise 3 x 12-15 + Face pull 3 x 12-15","5. Superset: Biceps curl 2 x 10-12 + Triceps extension 2 x 10-12","Abs (superset): Hanging knee raise 3 x 8-12 + Pallof press 3 x 10/side","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: stop 1-2 reps shy of failure. Add load when every set hits the top of the range."],"estMinutes":55,"keyLifts":["row","lat_pulldown"],"test":false},{"id":"w04-tue-run","date":"2026-11-17","week":4,"type":"run","kind":"fartlek","title":"Fartlek 6 x (3 min / 1:30 min)","zone":"Z4-5","details":["Warm-up: 2 km easy Z2","Main: 6 x (3 min hard, Z4-5 (RPE 8-9) / 1:30 min easy jog Z1-2)","Cooldown: 10 min easy jog"],"plannedKm":8.3,"plannedMin":50},{"id":"w04-wed-lift","date":"2026-11-18","week":4,"type":"lift","kind":"lift","lift":"A","title":"Lift A · Running legs + prevention","details":["SHARPEN: lower-body sets cut by about a third (shown). Same loads.","Warm-up (6 min): 3 min bike, 10 glute bridges, 10 leg swings each way, 1 light set of split squats","Skill (5 min, right after warm-up): 2-3 easy sets of your pull-up step + 2 sets of your push-up step. Never to failure.","1. Bulgarian split squat 2 x 6-10/leg","2. Superset: Leg press 2 x 8 + Tibialis raise 2 x 15","3. Single-leg RDL 2 x 8-10/leg","4. Superset: Hip abduction 2 x 12-15 + Copenhagen plank 1 x 25 s/side","5. Calf raise, straight knee 2 x 8-12","6. Calf raise, bent knee 1 x 12-15","Abs (superset): Side plank 2 x 30-45 s/side + Reverse crunch 2 x 12","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: moderate, 2-3 reps in reserve. Add load when every set hits the top of the range."],"estMinutes":40,"keyLifts":["split_squat","leg_press"],"test":false},{"id":"w04-fri-run","date":"2026-11-20","week":4,"type":"run","kind":"tempo","title":"Tempo 30 min","zone":"Z3-4","details":["Warm-up: 2 km easy Z2","Main: 30 min comfortably hard, top Z3 to low Z4 (RPE 6-7, 3-4 words)","Cooldown: 10 min easy jog"],"plannedKm":8.9,"plannedMin":53},{"id":"w04-sat-lift","date":"2026-11-21","week":4,"type":"lift","kind":"lift","lift":"C","title":"Lift C · Glute focus","details":["SHARPEN: lower-body sets cut by about a third (shown). Same loads.","Warm-up (6 min): 3 min bike or incline walk, 15 banded glute bridges, 10 banded side steps each way, 2 ramp-up hip thrust sets","Skill (5 min, right after warm-up): 2-3 easy sets of your pull-up step + 2 sets of your push-up step. Never to failure.","1. Hip thrust (heavy, 1 s pause at top) 3 x 6-10","2. 45 degree back extension (glute bias) or cable pull-through 2 x 10-12","3. Walking lunge, long stride 2 x 10/leg","4. Seated leg curl 2 x 10-15","5. Superset: Cable kickback or hip abduction 2 x 15 + Adductor machine 1 x 12-15","Abs (superset): Cable crunch 2 x 12 + Plank 2 x 30-45 s","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: stop 1-2 reps shy of failure. Add load when every set hits the top of the range."],"estMinutes":40,"keyLifts":["hip_thrust"],"test":false},{"id":"w04-sun-run","date":"2026-11-22","week":4,"type":"run","kind":"long","title":"Long run 8 km","zone":"Z2","details":["8 km mostly Z2 (RPE 3-4, full sentences)","Keep it slow. If HR drifts into Z3 on the easy part, walk 30 s.","Easy all the way. This is a freshening run, not a test."],"plannedKm":8.0,"plannedMin":52},{"id":"w05-mon-run","date":"2026-11-23","week":5,"type":"run","kind":"easy","title":"Easy recovery run","zone":"Z1-2","details":["25 min easy, Z1-2 (RPE 2-3, chatty, full sentences)","Too packed today? Do it Wed morning before Lift A."],"plannedMin":25,"plannedKm":3.8},{"id":"w05-mon-lift","date":"2026-11-23","week":5,"type":"lift","kind":"lift","lift":"B","title":"Lift B · Upper body, back focus (test day)","details":["LIGHT: half volume, easy loads, 3-4 reps in reserve. Leave feeling fresh.","Warm-up (5 min): 2 min row erg, 10 band pull-aparts, 10 scap pull-ups, 1 light set of rows","TEST DAY (about 8 min, replaces the pull-up progression sets, log it in the app):","Pull-up test: max dead hang (s), rest 2 min, then 1 slowest controlled negative (s). Note the lightest band you can do 5 clean reps with. If your negative is 15 s or more, try 1 strict rep.","Push-up test: max clean reps at your current incline. If 10 or more, rest 3 min and test one step lower.","1. Superset: Chest-supported row 2 x 8-12 + Incline push-up (your current step) 1 x 6-10","2. Superset: Neutral-grip lat pulldown 2 x 8-12 + Landmine press or neutral-grip DB press 1 x 8-10","3. Superset: Lateral raise 1 x 12-15 + Face pull 1 x 12-15","4. Superset: Biceps curl 1 x 10-12 + Triceps extension 1 x 10-12","Abs (superset): Hanging knee raise 2 x 8-12 + Pallof press 2 x 10/side","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: stop 1-2 reps shy of failure. Add load when every set hits the top of the range."],"estMinutes":36,"keyLifts":["row","lat_pulldown"],"test":true},{"id":"w05-tue-run","date":"2026-11-24","week":5,"type":"run","kind":"intervals","title":"Easy run + 4 x 1 min pickups","zone":"Z2","details":["22 min easy Z2 with 4 x 1 min pickups at 10K effort (RPE 7-8), 2 min easy between","Should feel snappy, not tiring"],"plannedKm":3.5,"plannedMin":24},{"id":"w05-fri-run","date":"2026-11-27","week":5,"type":"run","kind":"easy","title":"Pre-race shakeout","zone":"Z1-2","details":["15-20 min easy Z1-2 + 4 x 20 s strides (relaxed, quick feet)","Lay out race kit tonight. Sleep is the priority."],"plannedKm":2.8,"plannedMin":18},{"id":"w05-sun-run","date":"2026-11-29","week":5,"type":"run","kind":"race","title":"10K RACE","zone":"Race","details":["Warm-up: 10 min easy jog + 4 strides, finish 10 min before the start","km 1-2: controlled, a touch slower than goal. km 3-7: steady, strong (Z4). km 8-10: empty the tank (Z5).","Eat a familiar breakfast 2-3 h before. Walk 10 min after finishing."],"plannedKm":10.0,"plannedMin":54,"race":true},{"id":"w06-mon-run","date":"2026-11-30","week":6,"type":"run","kind":"easy","title":"Easy recovery run","zone":"Z1","details":["20 min easy, Z1 (RPE 2, could sing)","Day after the race: walk breaks are fine. Skip it if anything hurts.","Too packed today? Do it Wed morning before Lift A."],"plannedMin":20,"plannedKm":3.1},{"id":"w06-mon-lift","date":"2026-11-30","week":6,"type":"lift","kind":"lift","lift":"B","title":"Lift B · Upper body, back focus","details":["RECOVERY WEEK: about 70% volume (shown). Same loads, nothing heavy.","Warm-up (5 min): 2 min row erg, 10 band pull-aparts, 10 scap pull-ups, 1 light set of rows","1. Pull-up progression (your current step) 3 x 3-5","2. Superset: Chest-supported row 2 x 8-12 + Incline push-up (your current step) 2 x 6-10","3. Superset: Neutral-grip lat pulldown 2 x 8-12 + Landmine press or neutral-grip DB press 2 x 8-10","4. Superset: Lateral raise 2 x 12-15 + Face pull 2 x 12-15","5. Superset: Biceps curl 1 x 10-12 + Triceps extension 1 x 10-12","Abs (superset): Hanging knee raise 2 x 8-12 + Pallof press 2 x 10/side","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: stop 1-2 reps shy of failure. Add load when every set hits the top of the range."],"estMinutes":44,"keyLifts":["row","lat_pulldown"],"test":false},{"id":"w06-tue-run","date":"2026-12-01","week":6,"type":"run","kind":"easy","title":"Easy run","zone":"Z2","details":["30 min easy, Z2 (RPE 3-4, full sentences)","Easy only, no intervals this week. Optional 4 x 20 s strides if legs feel fresh."],"plannedMin":30,"plannedKm":4.6},{"id":"w06-wed-lift","date":"2026-12-02","week":6,"type":"lift","kind":"lift","lift":"A","title":"Lift A · Running legs + prevention","details":["RECOVERY WEEK: about 70% volume (shown). Same loads, nothing heavy.","Warm-up (6 min): 3 min bike, 10 glute bridges, 10 leg swings each way, 1 light set of split squats","Skill (5 min, right after warm-up): 2-3 easy sets of your pull-up step + 2 sets of your push-up step. Never to failure.","1. Bulgarian split squat 2 x 6-10/leg","2. Superset: Leg press 2 x 8 + Tibialis raise 2 x 15","3. Single-leg RDL 2 x 8-10/leg","4. Superset: Hip abduction 2 x 12-15 + Copenhagen plank 1 x 25 s/side","5. Calf raise, straight knee 2 x 8-12","6. Calf raise, bent knee 1 x 12-15","Abs (superset): Side plank 2 x 30-45 s/side + Reverse crunch 2 x 12","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: moderate, 2-3 reps in reserve. Add load when every set hits the top of the range."],"estMinutes":40,"keyLifts":["split_squat","leg_press"],"test":false},{"id":"w06-fri-run","date":"2026-12-04","week":6,"type":"run","kind":"easy","title":"Easy run","zone":"Z2","details":["35 min easy, Z2 (RPE 3-4, full sentences)","Easy only, no tempo this week."],"plannedMin":35,"plannedKm":5.4},{"id":"w06-sat-lift","date":"2026-12-05","week":6,"type":"lift","kind":"lift","lift":"C","title":"Lift C · Glute focus","details":["RECOVERY WEEK: about 70% volume (shown). Same loads, nothing heavy.","Warm-up (6 min): 3 min bike or incline walk, 15 banded glute bridges, 10 banded side steps each way, 2 ramp-up hip thrust sets","Skill (5 min, right after warm-up): 2-3 easy sets of your pull-up step + 2 sets of your push-up step. Never to failure.","1. Hip thrust (heavy, 1 s pause at top) 3 x 6-10","2. 45 degree back extension (glute bias) or cable pull-through 2 x 10-12","3. Walking lunge, long stride 2 x 10/leg","4. Seated leg curl 2 x 10-15","5. Superset: Cable kickback or hip abduction 2 x 15 + Adductor machine 1 x 12-15","Abs (superset): Cable crunch 2 x 12 + Plank 2 x 30-45 s","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: stop 1-2 reps shy of failure. Add load when every set hits the top of the range."],"estMinutes":40,"keyLifts":["hip_thrust"],"test":false},{"id":"w06-sun-run","date":"2026-12-06","week":6,"type":"run","kind":"long","title":"Long run 8 km","zone":"Z2","details":["8 km mostly Z2 (RPE 3-4, full sentences)","Keep it slow. If HR drifts into Z3 on the easy part, walk 30 s.","Easy. Recovery week."],"plannedKm":8.0,"plannedMin":52},{"id":"w07-mon-run","date":"2026-12-07","week":7,"type":"run","kind":"easy","title":"Easy recovery run","zone":"Z1-2","details":["30 min easy, Z1-2 (RPE 2-3, chatty, full sentences)","Too packed today? Do it Wed morning before Lift A."],"plannedMin":30,"plannedKm":4.6},{"id":"w07-mon-lift","date":"2026-12-07","week":7,"type":"lift","kind":"lift","lift":"B","title":"Lift B · Upper body, back focus (test day)","details":["Warm-up (5 min): 2 min row erg, 10 band pull-aparts, 10 scap pull-ups, 1 light set of rows","TEST DAY (about 8 min, replaces the pull-up progression sets, log it in the app):","Pull-up test: max dead hang (s), rest 2 min, then 1 slowest controlled negative (s). Note the lightest band you can do 5 clean reps with. If your negative is 15 s or more, try 1 strict rep.","Push-up test: max clean reps at your current incline. If 10 or more, rest 3 min and test one step lower.","1. Superset: Chest-supported row 3 x 8-12 + Incline push-up (your current step) 2 x 6-10","2. Superset: Neutral-grip lat pulldown 3 x 8-12 + Landmine press or neutral-grip DB press 3 x 8-10","3. Superset: Lateral raise 3 x 12-15 + Face pull 3 x 12-15","4. Superset: Biceps curl 2 x 10-12 + Triceps extension 2 x 10-12","Abs (superset): Hanging knee raise 3 x 8-12 + Pallof press 3 x 10/side","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: stop 1-2 reps shy of failure. Add load when every set hits the top of the range."],"estMinutes":55,"keyLifts":["row","lat_pulldown"],"test":true},{"id":"w07-tue-run","date":"2026-12-08","week":7,"type":"run","kind":"intervals","title":"Intervals 6 x 1 km","zone":"Z4","details":["Warm-up: 2 km easy Z2 + 4 x 20 s relaxed strides","Main: 6 x 1 km at 10K effort, Z4 (RPE 8, a few words), 2 min jog between","Cooldown: 10 min easy jog"],"plannedKm":10.9,"plannedMin":65},{"id":"w07-wed-lift","date":"2026-12-09","week":7,"type":"lift","kind":"lift","lift":"A","title":"Lift A · Running legs + prevention","details":["Warm-up (6 min): 3 min bike, 10 glute bridges, 10 leg swings each way, 1 light set of split squats","Skill (5 min, right after warm-up): 2-3 easy sets of your pull-up step + 2 sets of your push-up step. Never to failure.","1. Bulgarian split squat 3 x 6-10/leg","2. Superset: Leg press 3 x 8 + Tibialis raise 3 x 15","3. Single-leg RDL 3 x 8-10/leg","4. Superset: Hip abduction 3 x 12-15 + Copenhagen plank 2 x 25 s/side","5. Calf raise, straight knee 3 x 8-12","6. Calf raise, bent knee 2 x 12-15","Abs (superset): Side plank 2 x 30-45 s/side + Reverse crunch 2 x 12","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: moderate, 2-3 reps in reserve. Add load when every set hits the top of the range."],"estMinutes":50,"keyLifts":["split_squat","leg_press"],"test":false},{"id":"w07-fri-run","date":"2026-12-11","week":7,"type":"run","kind":"tempo","title":"Tempo 2 x 10 min","zone":"Z3-4","details":["Warm-up: 2 km easy Z2","Main: 2 x 10 min comfortably hard, top Z3 to low Z4 (RPE 6-7, 3-4 words), 2 min easy jog between","Cooldown: 10 min easy jog"],"plannedKm":7.4,"plannedMin":45},{"id":"w07-sat-lift","date":"2026-12-12","week":7,"type":"lift","kind":"lift","lift":"C","title":"Lift C · Glute focus","details":["Warm-up (6 min): 3 min bike or incline walk, 15 banded glute bridges, 10 banded side steps each way, 2 ramp-up hip thrust sets","Skill (5 min, right after warm-up): 2-3 easy sets of your pull-up step + 2 sets of your push-up step. Never to failure.","1. Hip thrust (heavy, 1 s pause at top) 4 x 6-10","2. 45 degree back extension (glute bias) or cable pull-through 3 x 10-12","3. Walking lunge, long stride 3 x 10/leg","4. Seated leg curl 3 x 10-15","5. Superset: Cable kickback or hip abduction 3 x 15 + Adductor machine 2 x 12-15","Abs (superset): Cable crunch 3 x 12 + Plank 3 x 30-45 s","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: stop 1-2 reps shy of failure. Add load when every set hits the top of the range."],"estMinutes":50,"keyLifts":["hip_thrust"],"test":false},{"id":"w07-sun-run","date":"2026-12-13","week":7,"type":"run","kind":"long","title":"Long run 12 km","zone":"Z2","details":["12 km mostly Z2 (RPE 3-4, full sentences)","Keep it slow. If HR drifts into Z3 on the easy part, walk 30 s."],"plannedKm":12.0,"plannedMin":78},{"id":"w08-mon-run","date":"2026-12-14","week":8,"type":"run","kind":"easy","title":"Easy recovery run","zone":"Z1-2","details":["30 min easy, Z1-2 (RPE 2-3, chatty, full sentences)","Too packed today? Do it Wed morning before Lift A."],"plannedMin":30,"plannedKm":4.6},{"id":"w08-mon-lift","date":"2026-12-14","week":8,"type":"lift","kind":"lift","lift":"B","title":"Lift B · Upper body, back focus","details":["Warm-up (5 min): 2 min row erg, 10 band pull-aparts, 10 scap pull-ups, 1 light set of rows","1. Pull-up progression (your current step) 4 x 3-5","2. Superset: Chest-supported row 3 x 8-12 + Incline push-up (your current step) 3 x 6-10","3. Superset: Neutral-grip lat pulldown 3 x 8-12 + Landmine press or neutral-grip DB press 3 x 8-10","4. Superset: Lateral raise 3 x 12-15 + Face pull 3 x 12-15","5. Superset: Biceps curl 2 x 10-12 + Triceps extension 2 x 10-12","Abs (superset): Hanging knee raise 3 x 8-12 + Pallof press 3 x 10/side","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: stop 1-2 reps shy of failure. Add load when every set hits the top of the range."],"estMinutes":55,"keyLifts":["row","lat_pulldown"],"test":false},{"id":"w08-tue-run","date":"2026-12-15","week":8,"type":"run","kind":"intervals","title":"Intervals 5 x 1.2 km","zone":"Z4","details":["Warm-up: 2 km easy Z2 + 4 x 20 s relaxed strides","Main: 5 x 1.2 km at 10K effort, Z4 (RPE 8, a few words), 2:30 min jog between","Cooldown: 10 min easy jog"],"plannedKm":10.9,"plannedMin":65},{"id":"w08-wed-lift","date":"2026-12-16","week":8,"type":"lift","kind":"lift","lift":"A","title":"Lift A · Running legs + prevention","details":["Warm-up (6 min): 3 min bike, 10 glute bridges, 10 leg swings each way, 1 light set of split squats","Skill (5 min, right after warm-up): 2-3 easy sets of your pull-up step + 2 sets of your push-up step. Never to failure.","1. Bulgarian split squat 3 x 6-10/leg","2. Superset: Leg press 3 x 8 + Tibialis raise 3 x 15","3. Single-leg RDL 3 x 8-10/leg","4. Superset: Hip abduction 3 x 12-15 + Copenhagen plank 2 x 25 s/side","5. Calf raise, straight knee 3 x 8-12","6. Calf raise, bent knee 2 x 12-15","Abs (superset): Side plank 2 x 30-45 s/side + Reverse crunch 2 x 12","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: moderate, 2-3 reps in reserve. Add load when every set hits the top of the range."],"estMinutes":50,"keyLifts":["split_squat","leg_press"],"test":false},{"id":"w08-fri-run","date":"2026-12-18","week":8,"type":"run","kind":"tempo","title":"Tempo 3 x 10 min","zone":"Z3-4","details":["Warm-up: 2 km easy Z2","Main: 3 x 10 min comfortably hard, top Z3 to low Z4 (RPE 6-7, 3-4 words), 2 min easy jog between","Cooldown: 10 min easy jog"],"plannedKm":9.5,"plannedMin":57},{"id":"w08-sat-lift","date":"2026-12-19","week":8,"type":"lift","kind":"lift","lift":"C","title":"Lift C · Glute focus","details":["Warm-up (6 min): 3 min bike or incline walk, 15 banded glute bridges, 10 banded side steps each way, 2 ramp-up hip thrust sets","Skill (5 min, right after warm-up): 2-3 easy sets of your pull-up step + 2 sets of your push-up step. Never to failure.","1. Hip thrust (heavy, 1 s pause at top) 4 x 6-10","2. 45 degree back extension (glute bias) or cable pull-through 3 x 10-12","3. Walking lunge, long stride 3 x 10/leg","4. Seated leg curl 3 x 10-15","5. Superset: Cable kickback or hip abduction 3 x 15 + Adductor machine 2 x 12-15","Abs (superset): Cable crunch 3 x 12 + Plank 3 x 30-45 s","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: stop 1-2 reps shy of failure. Add load when every set hits the top of the range."],"estMinutes":50,"keyLifts":["hip_thrust"],"test":false},{"id":"w08-sun-run","date":"2026-12-20","week":8,"type":"run","kind":"long","title":"Long run 14 km","zone":"Z2","details":["14 km mostly Z2 (RPE 3-4, full sentences)","Fuel: carry water + 1 gel, take it around 45-50 min","Keep it slow. If HR drifts into Z3 on the easy part, walk 30 s."],"plannedKm":14.0,"plannedMin":91},{"id":"w09-mon-run","date":"2026-12-21","week":9,"type":"run","kind":"easy","title":"Easy recovery run","zone":"Z1-2","details":["30 min easy, Z1-2 (RPE 2-3, chatty, full sentences)","Too packed today? Do it Wed morning before Lift A."],"plannedMin":30,"plannedKm":4.6},{"id":"w09-mon-lift","date":"2026-12-21","week":9,"type":"lift","kind":"lift","lift":"B","title":"Lift B · Upper body, back focus (test day)","details":["DELOAD: about 35% fewer sets (shown), same loads as last week.","Warm-up (5 min): 2 min row erg, 10 band pull-aparts, 10 scap pull-ups, 1 light set of rows","TEST DAY (about 8 min, replaces the pull-up progression sets, log it in the app):","Pull-up test: max dead hang (s), rest 2 min, then 1 slowest controlled negative (s). Note the lightest band you can do 5 clean reps with. If your negative is 15 s or more, try 1 strict rep.","Push-up test: max clean reps at your current incline. If 10 or more, rest 3 min and test one step lower.","1. Superset: Chest-supported row 2 x 8-12 + Incline push-up (your current step) 2 x 6-10","2. Superset: Neutral-grip lat pulldown 2 x 8-12 + Landmine press or neutral-grip DB press 2 x 8-10","3. Superset: Lateral raise 2 x 12-15 + Face pull 2 x 12-15","4. Superset: Biceps curl 1 x 10-12 + Triceps extension 1 x 10-12","Abs (superset): Hanging knee raise 2 x 8-12 + Pallof press 2 x 10/side","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: stop 1-2 reps shy of failure. Add load when every set hits the top of the range."],"estMinutes":44,"keyLifts":["row","lat_pulldown"],"test":true},{"id":"w09-tue-run","date":"2026-12-22","week":9,"type":"run","kind":"fartlek","title":"Fartlek 6 x (2 min / 2 min)","zone":"Z4-5","details":["Warm-up: 2 km easy Z2","Main: 6 x (2 min hard, Z4-5 (RPE 8-9) / 2 min easy jog Z1-2)","Cooldown: 10 min easy jog"],"plannedKm":7.5,"plannedMin":47},{"id":"w09-wed-lift","date":"2026-12-23","week":9,"type":"lift","kind":"lift","lift":"A","title":"Lift A · Running legs + prevention","details":["DELOAD: about 35% fewer sets (shown), same loads as last week.","Warm-up (6 min): 3 min bike, 10 glute bridges, 10 leg swings each way, 1 light set of split squats","Skill (5 min, right after warm-up): 2-3 easy sets of your pull-up step + 2 sets of your push-up step. Never to failure.","1. Bulgarian split squat 2 x 6-10/leg","2. Superset: Leg press 2 x 8 + Tibialis raise 2 x 15","3. Single-leg RDL 2 x 8-10/leg","4. Superset: Hip abduction 2 x 12-15 + Copenhagen plank 1 x 25 s/side","5. Calf raise, straight knee 2 x 8-12","6. Calf raise, bent knee 1 x 12-15","Abs (superset): Side plank 2 x 30-45 s/side + Reverse crunch 2 x 12","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: moderate, 2-3 reps in reserve. Add load when every set hits the top of the range."],"estMinutes":40,"keyLifts":["split_squat","leg_press"],"test":false},{"id":"w09-fri-run","date":"2026-12-25","week":9,"type":"run","kind":"tempo","title":"Tempo 2 x 8 min","zone":"Z3-4","details":["Warm-up: 2 km easy Z2","Main: 2 x 8 min comfortably hard, top Z3 to low Z4 (RPE 6-7, 3-4 words), 2 min easy jog between","Cooldown: 10 min easy jog"],"plannedKm":6.6,"plannedMin":41},{"id":"w09-sat-lift","date":"2026-12-26","week":9,"type":"lift","kind":"lift","lift":"C","title":"Lift C · Glute focus","details":["DELOAD: about 35% fewer sets (shown), same loads as last week.","Warm-up (6 min): 3 min bike or incline walk, 15 banded glute bridges, 10 banded side steps each way, 2 ramp-up hip thrust sets","Skill (5 min, right after warm-up): 2-3 easy sets of your pull-up step + 2 sets of your push-up step. Never to failure.","1. Hip thrust (heavy, 1 s pause at top) 3 x 6-10","2. 45 degree back extension (glute bias) or cable pull-through 2 x 10-12","3. Walking lunge, long stride 2 x 10/leg","4. Seated leg curl 2 x 10-15","5. Superset: Cable kickback or hip abduction 2 x 15 + Adductor machine 1 x 12-15","Abs (superset): Cable crunch 2 x 12 + Plank 2 x 30-45 s","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: stop 1-2 reps shy of failure. Add load when every set hits the top of the range."],"estMinutes":40,"keyLifts":["hip_thrust"],"test":false},{"id":"w09-sun-run","date":"2026-12-27","week":9,"type":"run","kind":"long","title":"Long run 10 km","zone":"Z2","details":["10 km mostly Z2 (RPE 3-4, full sentences)","Keep it slow. If HR drifts into Z3 on the easy part, walk 30 s."],"plannedKm":10.0,"plannedMin":65},{"id":"w10-mon-run","date":"2026-12-28","week":10,"type":"run","kind":"easy","title":"Easy recovery run","zone":"Z1-2","details":["30 min easy, Z1-2 (RPE 2-3, chatty, full sentences)","Too packed today? Do it Wed morning before Lift A."],"plannedMin":30,"plannedKm":4.6},{"id":"w10-mon-lift","date":"2026-12-28","week":10,"type":"lift","kind":"lift","lift":"B","title":"Lift B · Upper body, back focus","details":["Warm-up (5 min): 2 min row erg, 10 band pull-aparts, 10 scap pull-ups, 1 light set of rows","1. Pull-up progression (your current step) 4 x 3-5","2. Superset: Chest-supported row 3 x 8-12 + Incline push-up (your current step) 3 x 6-10","3. Superset: Neutral-grip lat pulldown 3 x 8-12 + Landmine press or neutral-grip DB press 3 x 8-10","4. Superset: Lateral raise 3 x 12-15 + Face pull 3 x 12-15","5. Superset: Biceps curl 2 x 10-12 + Triceps extension 2 x 10-12","Abs (superset): Hanging knee raise 3 x 8-12 + Pallof press 3 x 10/side","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: stop 1-2 reps shy of failure. Add load when every set hits the top of the range."],"estMinutes":55,"keyLifts":["row","lat_pulldown"],"test":false},{"id":"w10-tue-run","date":"2026-12-29","week":10,"type":"run","kind":"intervals","title":"Intervals 6 x 1.2 km","zone":"Z4","details":["Warm-up: 2 km easy Z2 + 4 x 20 s relaxed strides","Main: 6 x 1.2 km at 10K effort, Z4 (RPE 8, a few words), 2:30 min jog between","Cooldown: 10 min easy jog"],"plannedKm":12.4,"plannedMin":74},{"id":"w10-wed-lift","date":"2026-12-30","week":10,"type":"lift","kind":"lift","lift":"A","title":"Lift A · Running legs + prevention","details":["Warm-up (6 min): 3 min bike, 10 glute bridges, 10 leg swings each way, 1 light set of split squats","Skill (5 min, right after warm-up): 2-3 easy sets of your pull-up step + 2 sets of your push-up step. Never to failure.","1. Bulgarian split squat 3 x 6-10/leg","2. Superset: Leg press 3 x 8 + Tibialis raise 3 x 15","3. Single-leg RDL 3 x 8-10/leg","4. Superset: Hip abduction 3 x 12-15 + Copenhagen plank 2 x 25 s/side","5. Calf raise, straight knee 3 x 8-12","6. Calf raise, bent knee 2 x 12-15","Abs (superset): Side plank 2 x 30-45 s/side + Reverse crunch 2 x 12","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: moderate, 2-3 reps in reserve. Add load when every set hits the top of the range."],"estMinutes":50,"keyLifts":["split_squat","leg_press"],"test":false},{"id":"w10-fri-run","date":"2027-01-01","week":10,"type":"run","kind":"tempo","title":"Tempo 3 x 10 min","zone":"Z3-4","details":["Warm-up: 2 km easy Z2","Main: 3 x 10 min comfortably hard, top Z3 to low Z4 (RPE 6-7, 3-4 words), 2 min easy jog between","Cooldown: 10 min easy jog"],"plannedKm":9.5,"plannedMin":57},{"id":"w10-sat-lift","date":"2027-01-02","week":10,"type":"lift","kind":"lift","lift":"C","title":"Lift C · Glute focus","details":["Warm-up (6 min): 3 min bike or incline walk, 15 banded glute bridges, 10 banded side steps each way, 2 ramp-up hip thrust sets","Skill (5 min, right after warm-up): 2-3 easy sets of your pull-up step + 2 sets of your push-up step. Never to failure.","1. Hip thrust (heavy, 1 s pause at top) 4 x 6-10","2. 45 degree back extension (glute bias) or cable pull-through 3 x 10-12","3. Walking lunge, long stride 3 x 10/leg","4. Seated leg curl 3 x 10-15","5. Superset: Cable kickback or hip abduction 3 x 15 + Adductor machine 2 x 12-15","Abs (superset): Cable crunch 3 x 12 + Plank 3 x 30-45 s","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: stop 1-2 reps shy of failure. Add load when every set hits the top of the range."],"estMinutes":50,"keyLifts":["hip_thrust"],"test":false},{"id":"w10-sun-run","date":"2027-01-03","week":10,"type":"run","kind":"long","title":"Long run 15 km","zone":"Z2","details":["15 km mostly Z2 (RPE 3-4, full sentences)","Fuel: carry water + 1 gel, take it around 45-50 min","Keep it slow. If HR drifts into Z3 on the easy part, walk 30 s."],"plannedKm":15.0,"plannedMin":98},{"id":"w11-mon-run","date":"2027-01-04","week":11,"type":"run","kind":"easy","title":"Easy recovery run","zone":"Z1-2","details":["30 min easy, Z1-2 (RPE 2-3, chatty, full sentences)","Too packed today? Do it Wed morning before Lift A."],"plannedMin":30,"plannedKm":4.6},{"id":"w11-mon-lift","date":"2027-01-04","week":11,"type":"lift","kind":"lift","lift":"B","title":"Lift B · Upper body, back focus (test day)","details":["Warm-up (5 min): 2 min row erg, 10 band pull-aparts, 10 scap pull-ups, 1 light set of rows","TEST DAY (about 8 min, replaces the pull-up progression sets, log it in the app):","Pull-up test: max dead hang (s), rest 2 min, then 1 slowest controlled negative (s). Note the lightest band you can do 5 clean reps with. If your negative is 15 s or more, try 1 strict rep.","Push-up test: max clean reps at your current incline. If 10 or more, rest 3 min and test one step lower.","1. Superset: Chest-supported row 3 x 8-12 + Incline push-up (your current step) 2 x 6-10","2. Superset: Neutral-grip lat pulldown 3 x 8-12 + Landmine press or neutral-grip DB press 3 x 8-10","3. Superset: Lateral raise 3 x 12-15 + Face pull 3 x 12-15","4. Superset: Biceps curl 2 x 10-12 + Triceps extension 2 x 10-12","Abs (superset): Hanging knee raise 3 x 8-12 + Pallof press 3 x 10/side","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: stop 1-2 reps shy of failure. Add load when every set hits the top of the range."],"estMinutes":55,"keyLifts":["row","lat_pulldown"],"test":true},{"id":"w11-tue-run","date":"2027-01-05","week":11,"type":"run","kind":"intervals","title":"Intervals 4 x 1.6 km","zone":"Z4","details":["Warm-up: 2 km easy Z2 + 4 x 20 s relaxed strides","Main: 4 x 1.6 km at 10K-to-half pace, low Z4 (RPE 7-8), 2:30 min jog between","Cooldown: 10 min easy jog"],"plannedKm":10.9,"plannedMin":65},{"id":"w11-wed-lift","date":"2027-01-06","week":11,"type":"lift","kind":"lift","lift":"A","title":"Lift A · Running legs + prevention","details":["Warm-up (6 min): 3 min bike, 10 glute bridges, 10 leg swings each way, 1 light set of split squats","Skill (5 min, right after warm-up): 2-3 easy sets of your pull-up step + 2 sets of your push-up step. Never to failure.","1. Bulgarian split squat 3 x 6-10/leg","2. Superset: Leg press 3 x 8 + Tibialis raise 3 x 15","3. Single-leg RDL 3 x 8-10/leg","4. Superset: Hip abduction 3 x 12-15 + Copenhagen plank 2 x 25 s/side","5. Calf raise, straight knee 3 x 8-12","6. Calf raise, bent knee 2 x 12-15","Abs (superset): Side plank 2 x 30-45 s/side + Reverse crunch 2 x 12","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: moderate, 2-3 reps in reserve. Add load when every set hits the top of the range."],"estMinutes":50,"keyLifts":["split_squat","leg_press"],"test":false},{"id":"w11-fri-run","date":"2027-01-08","week":11,"type":"run","kind":"tempo","title":"Tempo 2 x 15 min","zone":"Z3-4","details":["Warm-up: 2 km easy Z2","Main: 2 x 15 min half-marathon effort, top Z3 (RPE 6-7, short phrases), 3 min easy jog between","Cooldown: 10 min easy jog"],"plannedKm":9.3,"plannedMin":56},{"id":"w11-sat-lift","date":"2027-01-09","week":11,"type":"lift","kind":"lift","lift":"C","title":"Lift C · Glute focus","details":["Warm-up (6 min): 3 min bike or incline walk, 15 banded glute bridges, 10 banded side steps each way, 2 ramp-up hip thrust sets","Skill (5 min, right after warm-up): 2-3 easy sets of your pull-up step + 2 sets of your push-up step. Never to failure.","1. Hip thrust (heavy, 1 s pause at top) 4 x 6-10","2. 45 degree back extension (glute bias) or cable pull-through 3 x 10-12","3. Walking lunge, long stride 3 x 10/leg","4. Seated leg curl 3 x 10-15","5. Superset: Cable kickback or hip abduction 3 x 15 + Adductor machine 2 x 12-15","Abs (superset): Cable crunch 3 x 12 + Plank 3 x 30-45 s","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: stop 1-2 reps shy of failure. Add load when every set hits the top of the range."],"estMinutes":50,"keyLifts":["hip_thrust"],"test":false},{"id":"w11-sun-run","date":"2027-01-10","week":11,"type":"run","kind":"long","title":"Long run 16 km","zone":"Z2","details":["16 km mostly Z2 (RPE 3-4, full sentences)","Fuel: carry water + 1 gel, take it around 45-50 min","Keep it slow. If HR drifts into Z3 on the easy part, walk 30 s."],"plannedKm":16.0,"plannedMin":104},{"id":"w12-mon-run","date":"2027-01-11","week":12,"type":"run","kind":"easy","title":"Easy recovery run","zone":"Z1-2","details":["30 min easy, Z1-2 (RPE 2-3, chatty, full sentences)","Too packed today? Do it Wed morning before Lift A."],"plannedMin":30,"plannedKm":4.6},{"id":"w12-mon-lift","date":"2027-01-11","week":12,"type":"lift","kind":"lift","lift":"B","title":"Lift B · Upper body, back focus","details":["Warm-up (5 min): 2 min row erg, 10 band pull-aparts, 10 scap pull-ups, 1 light set of rows","1. Pull-up progression (your current step) 4 x 3-5","2. Superset: Chest-supported row 3 x 8-12 + Incline push-up (your current step) 3 x 6-10","3. Superset: Neutral-grip lat pulldown 3 x 8-12 + Landmine press or neutral-grip DB press 3 x 8-10","4. Superset: Lateral raise 3 x 12-15 + Face pull 3 x 12-15","5. Superset: Biceps curl 2 x 10-12 + Triceps extension 2 x 10-12","Abs (superset): Hanging knee raise 3 x 8-12 + Pallof press 3 x 10/side","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: stop 1-2 reps shy of failure. Add load when every set hits the top of the range."],"estMinutes":55,"keyLifts":["row","lat_pulldown"],"test":false},{"id":"w12-tue-run","date":"2027-01-12","week":12,"type":"run","kind":"intervals","title":"Intervals 5 x 5 min","zone":"Z4","details":["Warm-up: 2 km easy Z2 + 4 x 20 s relaxed strides","Main: 5 x 5 min at 10K-to-half pace, low Z4 (RPE 7-8), 2 min jog between","Cooldown: 10 min easy jog"],"plannedKm":9.4,"plannedMin":58},{"id":"w12-wed-lift","date":"2027-01-13","week":12,"type":"lift","kind":"lift","lift":"A","title":"Lift A · Running legs + prevention","details":["Warm-up (6 min): 3 min bike, 10 glute bridges, 10 leg swings each way, 1 light set of split squats","Skill (5 min, right after warm-up): 2-3 easy sets of your pull-up step + 2 sets of your push-up step. Never to failure.","1. Bulgarian split squat 3 x 6-10/leg","2. Superset: Leg press 3 x 8 + Tibialis raise 3 x 15","3. Single-leg RDL 3 x 8-10/leg","4. Superset: Hip abduction 3 x 12-15 + Copenhagen plank 2 x 25 s/side","5. Calf raise, straight knee 3 x 8-12","6. Calf raise, bent knee 2 x 12-15","Abs (superset): Side plank 2 x 30-45 s/side + Reverse crunch 2 x 12","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: moderate, 2-3 reps in reserve. Add load when every set hits the top of the range."],"estMinutes":50,"keyLifts":["split_squat","leg_press"],"test":false},{"id":"w12-fri-run","date":"2027-01-15","week":12,"type":"run","kind":"tempo","title":"Tempo 25 min","zone":"Z3-4","details":["Warm-up: 2 km easy Z2","Main: 25 min comfortably hard, top Z3 to low Z4 (RPE 6-7, 3-4 words)","Cooldown: 10 min easy jog"],"plannedKm":8.0,"plannedMin":48},{"id":"w12-sat-lift","date":"2027-01-16","week":12,"type":"lift","kind":"lift","lift":"C","title":"Lift C · Glute focus","details":["Warm-up (6 min): 3 min bike or incline walk, 15 banded glute bridges, 10 banded side steps each way, 2 ramp-up hip thrust sets","Skill (5 min, right after warm-up): 2-3 easy sets of your pull-up step + 2 sets of your push-up step. Never to failure.","1. Hip thrust (heavy, 1 s pause at top) 4 x 6-10","2. 45 degree back extension (glute bias) or cable pull-through 3 x 10-12","3. Walking lunge, long stride 3 x 10/leg","4. Seated leg curl 3 x 10-15","5. Superset: Cable kickback or hip abduction 3 x 15 + Adductor machine 2 x 12-15","Abs (superset): Cable crunch 3 x 12 + Plank 3 x 30-45 s","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: stop 1-2 reps shy of failure. Add load when every set hits the top of the range."],"estMinutes":50,"keyLifts":["hip_thrust"],"test":false},{"id":"w12-sun-run","date":"2027-01-17","week":12,"type":"run","kind":"long","title":"Long run 18 km (last 3 km HM effort)","zone":"Z2","details":["18 km: first 15 km Z2 (RPE 3-4), last 3 km at half-marathon effort, top Z3 (RPE 6-7, short phrases)","Fuel: carry water + 1 gel, take it around 45-50 min","Keep it slow. If HR drifts into Z3 on the easy part, walk 30 s."],"plannedKm":18.0,"plannedMin":115},{"id":"w13-mon-run","date":"2027-01-18","week":13,"type":"run","kind":"easy","title":"Easy recovery run","zone":"Z1-2","details":["30 min easy, Z1-2 (RPE 2-3, chatty, full sentences)","Too packed today? Do it Wed morning before Lift A."],"plannedMin":30,"plannedKm":4.6},{"id":"w13-mon-lift","date":"2027-01-18","week":13,"type":"lift","kind":"lift","lift":"B","title":"Lift B · Upper body, back focus (test day)","details":["DELOAD: about 35% fewer sets (shown), same loads as last week.","Warm-up (5 min): 2 min row erg, 10 band pull-aparts, 10 scap pull-ups, 1 light set of rows","TEST DAY (about 8 min, replaces the pull-up progression sets, log it in the app):","Pull-up test: max dead hang (s), rest 2 min, then 1 slowest controlled negative (s). Note the lightest band you can do 5 clean reps with. If your negative is 15 s or more, try 1 strict rep.","Push-up test: max clean reps at your current incline. If 10 or more, rest 3 min and test one step lower.","1. Superset: Chest-supported row 2 x 8-12 + Incline push-up (your current step) 2 x 6-10","2. Superset: Neutral-grip lat pulldown 2 x 8-12 + Landmine press or neutral-grip DB press 2 x 8-10","3. Superset: Lateral raise 2 x 12-15 + Face pull 2 x 12-15","4. Superset: Biceps curl 1 x 10-12 + Triceps extension 1 x 10-12","Abs (superset): Hanging knee raise 2 x 8-12 + Pallof press 2 x 10/side","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: stop 1-2 reps shy of failure. Add load when every set hits the top of the range."],"estMinutes":44,"keyLifts":["row","lat_pulldown"],"test":true},{"id":"w13-tue-run","date":"2027-01-19","week":13,"type":"run","kind":"intervals","title":"Intervals 6 x 3 min","zone":"Z4","details":["Warm-up: 2 km easy Z2 + 4 x 20 s relaxed strides","Main: 6 x 3 min at 10K effort, Z4 (RPE 8, a few words), 90 s jog between","Cooldown: 10 min easy jog"],"plannedKm":8.0,"plannedMin":50},{"id":"w13-wed-lift","date":"2027-01-20","week":13,"type":"lift","kind":"lift","lift":"A","title":"Lift A · Running legs + prevention","details":["DELOAD: about 35% fewer sets (shown), same loads as last week.","Warm-up (6 min): 3 min bike, 10 glute bridges, 10 leg swings each way, 1 light set of split squats","Skill (5 min, right after warm-up): 2-3 easy sets of your pull-up step + 2 sets of your push-up step. Never to failure.","1. Bulgarian split squat 2 x 6-10/leg","2. Superset: Leg press 2 x 8 + Tibialis raise 2 x 15","3. Single-leg RDL 2 x 8-10/leg","4. Superset: Hip abduction 2 x 12-15 + Copenhagen plank 1 x 25 s/side","5. Calf raise, straight knee 2 x 8-12","6. Calf raise, bent knee 1 x 12-15","Abs (superset): Side plank 2 x 30-45 s/side + Reverse crunch 2 x 12","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: moderate, 2-3 reps in reserve. Add load when every set hits the top of the range."],"estMinutes":40,"keyLifts":["split_squat","leg_press"],"test":false},{"id":"w13-fri-run","date":"2027-01-22","week":13,"type":"run","kind":"tempo","title":"Tempo 2 x 10 min","zone":"Z3-4","details":["Warm-up: 2 km easy Z2","Main: 2 x 10 min comfortably hard, top Z3 to low Z4 (RPE 6-7, 3-4 words), 2 min easy jog between","Cooldown: 10 min easy jog"],"plannedKm":7.4,"plannedMin":45},{"id":"w13-sat-lift","date":"2027-01-23","week":13,"type":"lift","kind":"lift","lift":"C","title":"Lift C · Glute focus","details":["DELOAD: about 35% fewer sets (shown), same loads as last week.","Warm-up (6 min): 3 min bike or incline walk, 15 banded glute bridges, 10 banded side steps each way, 2 ramp-up hip thrust sets","Skill (5 min, right after warm-up): 2-3 easy sets of your pull-up step + 2 sets of your push-up step. Never to failure.","1. Hip thrust (heavy, 1 s pause at top) 3 x 6-10","2. 45 degree back extension (glute bias) or cable pull-through 2 x 10-12","3. Walking lunge, long stride 2 x 10/leg","4. Seated leg curl 2 x 10-15","5. Superset: Cable kickback or hip abduction 2 x 15 + Adductor machine 1 x 12-15","Abs (superset): Cable crunch 2 x 12 + Plank 2 x 30-45 s","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: stop 1-2 reps shy of failure. Add load when every set hits the top of the range."],"estMinutes":40,"keyLifts":["hip_thrust"],"test":false},{"id":"w13-sun-run","date":"2027-01-24","week":13,"type":"run","kind":"long","title":"Long run 13 km","zone":"Z2","details":["13 km mostly Z2 (RPE 3-4, full sentences)","Keep it slow. If HR drifts into Z3 on the easy part, walk 30 s."],"plannedKm":13.0,"plannedMin":84},{"id":"w14-mon-run","date":"2027-01-25","week":14,"type":"run","kind":"easy","title":"Easy recovery run","zone":"Z1-2","details":["30 min easy, Z1-2 (RPE 2-3, chatty, full sentences)","Too packed today? Do it Wed morning before Lift A."],"plannedMin":30,"plannedKm":4.6},{"id":"w14-mon-lift","date":"2027-01-25","week":14,"type":"lift","kind":"lift","lift":"B","title":"Lift B · Upper body, back focus","details":["Warm-up (5 min): 2 min row erg, 10 band pull-aparts, 10 scap pull-ups, 1 light set of rows","1. Pull-up progression (your current step) 4 x 3-5","2. Superset: Chest-supported row 3 x 8-12 + Incline push-up (your current step) 3 x 6-10","3. Superset: Neutral-grip lat pulldown 3 x 8-12 + Landmine press or neutral-grip DB press 3 x 8-10","4. Superset: Lateral raise 3 x 12-15 + Face pull 3 x 12-15","5. Superset: Biceps curl 2 x 10-12 + Triceps extension 2 x 10-12","Abs (superset): Hanging knee raise 3 x 8-12 + Pallof press 3 x 10/side","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: stop 1-2 reps shy of failure. Add load when every set hits the top of the range."],"estMinutes":55,"keyLifts":["row","lat_pulldown"],"test":false},{"id":"w14-tue-run","date":"2027-01-26","week":14,"type":"run","kind":"intervals","title":"Intervals 5 x 1.6 km","zone":"Z4","details":["Warm-up: 2 km easy Z2 + 4 x 20 s relaxed strides","Main: 5 x 1.6 km at 10K-to-half pace, low Z4 (RPE 7-8), 2:30 min jog between","Cooldown: 10 min easy jog"],"plannedKm":12.9,"plannedMin":76},{"id":"w14-wed-lift","date":"2027-01-27","week":14,"type":"lift","kind":"lift","lift":"A","title":"Lift A · Running legs + prevention","details":["Warm-up (6 min): 3 min bike, 10 glute bridges, 10 leg swings each way, 1 light set of split squats","Skill (5 min, right after warm-up): 2-3 easy sets of your pull-up step + 2 sets of your push-up step. Never to failure.","1. Bulgarian split squat 3 x 6-10/leg","2. Superset: Leg press 3 x 8 + Tibialis raise 3 x 15","3. Single-leg RDL 3 x 8-10/leg","4. Superset: Hip abduction 3 x 12-15 + Copenhagen plank 2 x 25 s/side","5. Calf raise, straight knee 3 x 8-12","6. Calf raise, bent knee 2 x 12-15","Abs (superset): Side plank 2 x 30-45 s/side + Reverse crunch 2 x 12","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: moderate, 2-3 reps in reserve. Add load when every set hits the top of the range."],"estMinutes":50,"keyLifts":["split_squat","leg_press"],"test":false},{"id":"w14-fri-run","date":"2027-01-29","week":14,"type":"run","kind":"tempo","title":"Half-marathon effort run 30 min","zone":"Z3-4","details":["Warm-up: 2 km easy Z2","Main: 30 min half-marathon effort, top Z3 (RPE 6-7, short phrases)","Cooldown: 10 min easy jog"],"plannedKm":8.9,"plannedMin":53},{"id":"w14-sat-lift","date":"2027-01-30","week":14,"type":"lift","kind":"lift","lift":"C","title":"Lift C · Glute focus","details":["Warm-up (6 min): 3 min bike or incline walk, 15 banded glute bridges, 10 banded side steps each way, 2 ramp-up hip thrust sets","Skill (5 min, right after warm-up): 2-3 easy sets of your pull-up step + 2 sets of your push-up step. Never to failure.","1. Hip thrust (heavy, 1 s pause at top) 4 x 6-10","2. 45 degree back extension (glute bias) or cable pull-through 3 x 10-12","3. Walking lunge, long stride 3 x 10/leg","4. Seated leg curl 3 x 10-15","5. Superset: Cable kickback or hip abduction 3 x 15 + Adductor machine 2 x 12-15","Abs (superset): Cable crunch 3 x 12 + Plank 3 x 30-45 s","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: stop 1-2 reps shy of failure. Add load when every set hits the top of the range."],"estMinutes":50,"keyLifts":["hip_thrust"],"test":false},{"id":"w14-sun-run","date":"2027-01-31","week":14,"type":"run","kind":"long","title":"Long run 19 km (last 5 km HM effort)","zone":"Z2","details":["19 km: first 14 km Z2 (RPE 3-4), last 5 km at half-marathon effort, top Z3 (RPE 6-7, short phrases)","Fuel: carry water + 1 gel, take it around 45-50 min","Keep it slow. If HR drifts into Z3 on the easy part, walk 30 s.","PEAK long run. Practice race-day breakfast, shoes and gel."],"plannedKm":19.0,"plannedMin":120},{"id":"w15-mon-run","date":"2027-02-01","week":15,"type":"run","kind":"easy","title":"Easy recovery run","zone":"Z1-2","details":["25 min easy, Z1-2 (RPE 2-3, chatty, full sentences)","Too packed today? Do it Wed morning before Lift A."],"plannedMin":25,"plannedKm":3.8},{"id":"w15-mon-lift","date":"2027-02-01","week":15,"type":"lift","kind":"lift","lift":"B","title":"Lift B · Upper body, back focus (test day)","details":["TAPER: half volume (shown). Same loads, 3+ reps in reserve.","Warm-up (5 min): 2 min row erg, 10 band pull-aparts, 10 scap pull-ups, 1 light set of rows","TEST DAY (about 8 min, replaces the pull-up progression sets, log it in the app):","Pull-up test: max dead hang (s), rest 2 min, then 1 slowest controlled negative (s). Note the lightest band you can do 5 clean reps with. If your negative is 15 s or more, try 1 strict rep.","Push-up test: max clean reps at your current incline. If 10 or more, rest 3 min and test one step lower.","1. Superset: Chest-supported row 2 x 8-12 + Incline push-up (your current step) 1 x 6-10","2. Superset: Neutral-grip lat pulldown 2 x 8-12 + Landmine press or neutral-grip DB press 1 x 8-10","3. Superset: Lateral raise 1 x 12-15 + Face pull 1 x 12-15","4. Superset: Biceps curl 1 x 10-12 + Triceps extension 1 x 10-12","Abs (superset): Hanging knee raise 2 x 8-12 + Pallof press 2 x 10/side","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: stop 1-2 reps shy of failure. Add load when every set hits the top of the range."],"estMinutes":36,"keyLifts":["row","lat_pulldown"],"test":true},{"id":"w15-tue-run","date":"2027-02-02","week":15,"type":"run","kind":"intervals","title":"Intervals 5 x 800 m","zone":"Z4","details":["Warm-up: 2 km easy Z2 + 4 x 20 s relaxed strides","Main: 5 x 800 m at 10K effort, Z4 (RPE 8, a few words), 2 min jog between","Cooldown: 10 min easy jog"],"plannedKm":8.6,"plannedMin":53},{"id":"w15-wed-lift","date":"2027-02-03","week":15,"type":"lift","kind":"lift","lift":"A","title":"Lift A · Running legs + prevention","details":["TAPER: half volume (shown). Same loads, 3+ reps in reserve.","Warm-up (6 min): 3 min bike, 10 glute bridges, 10 leg swings each way, 1 light set of split squats","Skill (5 min, right after warm-up): 2-3 easy sets of your pull-up step + 2 sets of your push-up step. Never to failure.","1. Bulgarian split squat 2 x 6-10/leg","2. Superset: Leg press 2 x 8 + Tibialis raise 1 x 15","3. Single-leg RDL 2 x 8-10/leg","4. Superset: Hip abduction 1 x 12-15 + Copenhagen plank 1 x 25 s/side","5. Calf raise, straight knee 1 x 8-12","6. Calf raise, bent knee 1 x 12-15","Abs (superset): Side plank 2 x 30-45 s/side + Reverse crunch 2 x 12","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: moderate, 2-3 reps in reserve. Add load when every set hits the top of the range."],"estMinutes":32,"keyLifts":["split_squat","leg_press"],"test":false},{"id":"w15-fri-run","date":"2027-02-05","week":15,"type":"run","kind":"tempo","title":"Half-marathon effort run 20 min","zone":"Z3-4","details":["Warm-up: 2 km easy Z2","Main: 20 min half-marathon effort, top Z3 (RPE 6-7, short phrases)","Cooldown: 10 min easy jog"],"plannedKm":7.1,"plannedMin":43},{"id":"w15-sat-lift","date":"2027-02-06","week":15,"type":"lift","kind":"lift","lift":"C","title":"Lift C · Glute focus","details":["TAPER: half volume (shown). Same loads, 3+ reps in reserve.","Warm-up (6 min): 3 min bike or incline walk, 15 banded glute bridges, 10 banded side steps each way, 2 ramp-up hip thrust sets","Skill (5 min, right after warm-up): 2-3 easy sets of your pull-up step + 2 sets of your push-up step. Never to failure.","1. Hip thrust (heavy, 1 s pause at top) 2 x 6-10","2. 45 degree back extension (glute bias) or cable pull-through 2 x 10-12","3. Walking lunge, long stride 2 x 10/leg","4. Seated leg curl 1 x 10-15","5. Superset: Cable kickback or hip abduction 1 x 15 + Adductor machine 1 x 12-15","Abs (superset): Cable crunch 2 x 12 + Plank 2 x 30-45 s","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: stop 1-2 reps shy of failure. Add load when every set hits the top of the range.","Last lower-body lift before the half marathon."],"estMinutes":32,"keyLifts":["hip_thrust"],"test":false},{"id":"w15-sun-run","date":"2027-02-07","week":15,"type":"run","kind":"long","title":"Long run 13 km","zone":"Z2","details":["13 km mostly Z2 (RPE 3-4, full sentences)","Keep it slow. If HR drifts into Z3 on the easy part, walk 30 s.","About 30% shorter than last week. Easy."],"plannedKm":13.0,"plannedMin":84},{"id":"w16-mon-run","date":"2027-02-08","week":16,"type":"run","kind":"easy","title":"Easy recovery run","zone":"Z1-2","details":["25 min easy, Z1-2 (RPE 2-3, chatty, full sentences)","Too packed today? Do it Wed morning before Lift A."],"plannedMin":25,"plannedKm":3.8},{"id":"w16-mon-lift","date":"2027-02-08","week":16,"type":"lift","kind":"lift","lift":"B","title":"Lift B · Upper body, back focus","details":["LIGHT: half volume, easy loads, 3-4 reps in reserve. Leave feeling fresh.","Warm-up (5 min): 2 min row erg, 10 band pull-aparts, 10 scap pull-ups, 1 light set of rows","1. Pull-up progression (your current step) 2 x 3-5","2. Superset: Chest-supported row 2 x 8-12 + Incline push-up (your current step) 1 x 6-10","3. Superset: Neutral-grip lat pulldown 2 x 8-12 + Landmine press or neutral-grip DB press 1 x 8-10","4. Superset: Lateral raise 1 x 12-15 + Face pull 1 x 12-15","5. Superset: Biceps curl 1 x 10-12 + Triceps extension 1 x 10-12","Abs (superset): Hanging knee raise 2 x 8-12 + Pallof press 2 x 10/side","Rest: 90-120 s on main lifts, 60-75 s after each superset pair.","Effort: stop 1-2 reps shy of failure. Add load when every set hits the top of the range."],"estMinutes":36,"keyLifts":["row","lat_pulldown"],"test":false},{"id":"w16-tue-run","date":"2027-02-09","week":16,"type":"run","kind":"intervals","title":"Sharpener 6 x 1 min","zone":"Z4","details":["Warm-up: 2 km easy Z2 + 4 x 20 s relaxed strides","Main: 6 x 1 min at 10K effort, Z4 (RPE 8, a few words), 1 min jog between","Cooldown: 10 min easy jog"],"plannedKm":5.3,"plannedMin":36},{"id":"w16-fri-run","date":"2027-02-12","week":16,"type":"run","kind":"easy","title":"Pre-race shakeout","zone":"Z1-2","details":["20 min easy Z1-2 + 4 x 20 s strides (relaxed, quick feet)","Lay out race kit tonight. Sleep is the priority."],"plannedKm":3.1,"plannedMin":20},{"id":"w16-sun-run","date":"2027-02-14","week":16,"type":"run","kind":"race","title":"HALF MARATHON RACE","zone":"Race","details":["Warm-up: 5-8 min easy jog + 2 strides","km 1-5: patient, at or slightly below HM effort (top Z3). km 6-16: settle at HM effort. km 17-21: push into Z4 if you have it.","Gel at about 40 and 75 min, water at most stations. Nothing new on race day."],"plannedKm":21.1,"plannedMin":114,"race":true}],"version":"e312e76973"};/*PLAN-DATA-END*/
+
+// ------------------------------------------------------------------ constants
+const KEY_STATE = 'ht.state.v1';   // your changes (status, moves, notes, logs), keyed by session id
+const KEY_CFG = 'ht.sync.v1';      // sync settings for THIS device only (token never leaves the browser except to GitHub)
+const GIST_FILE = 'hybrid-tracker.json';
+const API = 'https://api.github.com';
+const KEY_LIFTS = { hip_thrust: 'Hip thrust', leg_press: 'Leg press', row: 'Chest-supported row', lat_pulldown: 'Lat pulldown', split_squat: 'Split squat' };
+const KEY_LIFT_ORDER = ['hip_thrust', 'leg_press', 'row', 'lat_pulldown', 'split_squat'];
+const PULL_BANDS = [['negatives', 'Negatives only'], ['heavy', 'Heavy band'], ['medium', 'Medium band'], ['light', 'Light band'], ['strict', 'No band (strict)']];
+const PUSH_STEPS = [['90', 'Smith bar ~90 cm'], ['60', 'Smith bar ~60 cm'], ['45', 'Bench ~45 cm'], ['30', 'Low box ~30 cm'], ['floor', 'Floor']];
+const PULL_LADDER = [
+  { name: 'Negatives (4-5 s)', next: 'Move to a heavy band when your negative is 10 s+ and your dead hang 30 s+.' },
+  { name: 'Heavy band', next: 'Move to the medium band at 3 x 5 clean reps.' },
+  { name: 'Medium band', next: 'Move to the light band at 3 x 5 clean reps.' },
+  { name: 'Light band', next: 'At 3 x 5 clean reps and a 15 s negative, try a strict rep.' },
+  { name: 'First strict rep', next: 'Get 1 strict rep on two different days, then build sets of 2-3.' },
+  { name: 'Sets of 2-3 strict', next: 'Build to 3 x 3 strict. That is the goal.' }
+];
+const DOWS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const HARD = ['intervals', 'fartlek', 'tempo', 'long', 'race'];
+const SESS = PLAN.sessions;
+const BYID = Object.fromEntries(SESS.map(s => [s.id, s]));
+
+// ------------------------------------------------------------------ dates (all ISO yyyy-mm-dd, local calendar)
+const pad = n => String(n).padStart(2, '0');
+function todayISO() { const d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+function parseISO(s) { const [y, m, d] = s.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)); }
+function toISO(dt) { return dt.getUTCFullYear() + '-' + pad(dt.getUTCMonth() + 1) + '-' + pad(dt.getUTCDate()); }
+function addDays(s, n) { const d = parseISO(s); d.setUTCDate(d.getUTCDate() + n); return toISO(d); }
+function dow(s) { return (parseISO(s).getUTCDay() + 6) % 7; }
+function diffDays(a, b) { return Math.round((parseISO(b) - parseISO(a)) / 864e5); }
+function fmtDay(s) { const d = parseISO(s); return DOWS[dow(s)] + ' ' + MONTHS[d.getUTCMonth()] + ' ' + d.getUTCDate(); }
+function fmtShort(s) { const d = parseISO(s); return MONTHS[d.getUTCMonth()] + ' ' + d.getUTCDate(); }
+function isValidISO(s) { return /^\d{4}-\d{2}-\d{2}$/.test(s || '') && !isNaN(parseISO(s)); }
+function relTime(ms) {
+  const m = Math.round((Date.now() - ms) / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return m + ' min ago';
+  const h = Math.round(m / 60);
+  if (h < 24) return h + ' h ago';
+  return Math.round(h / 24) + ' d ago';
+}
+
+// ------------------------------------------------------------------ storage
+function loadJSON(key, fallback) {
+  try { const v = JSON.parse(localStorage.getItem(key)); return v && typeof v === 'object' ? v : fallback; } catch (e) { return fallback; }
+}
+function saveJSON(key, v) {
+  try { localStorage.setItem(key, JSON.stringify(v)); return true; } catch (e) { toast('Could not save on this device (storage full or blocked).'); return false; }
+}
+let S = loadJSON(KEY_STATE, null) || { records: {}, lastTs: 0 };
+if (!S.records) S.records = {};
+let CFG = Object.assign({ token: '', gistId: '', lastSyncAt: 0, lastSyncMark: 0, dirty: false, lastError: '' }, loadJSON(KEY_CFG, {}));
+const saveState = () => saveJSON(KEY_STATE, S);
+const saveCfg = () => saveJSON(KEY_CFG, CFG);
+
+function rec(id) { return S.records[id] || {}; }
+// Logical clock: never goes backwards, and always ahead of anything already seen (protects against clock skew between devices).
+function stamp() { const t = Math.max(Date.now(), (S.lastTs || 0) + 1); S.lastTs = t; return t; }
+function setFields(id, patch) {
+  const r = S.records[id] || (S.records[id] = { t: {} });
+  r.t = r.t || {};
+  const t = stamp();
+  for (const k in patch) { r[k] = patch[k]; r.t[k] = t; }
+  r.updatedAt = t;
+  saveState();
+  CFG.dirty = true; saveCfg();
+  scheduleSync();
+}
+function snapshot(id, keys) { const r = rec(id); const o = {}; keys.forEach(k => { o[k] = r[k] === undefined ? null : r[k]; }); return o; }
+
+// ------------------------------------------------------------------ plan helpers
+let TODAY = todayISO();
+function eff(s) { const m = rec(s.id).movedTo; return m || s.date; }
+function statusOf(s) {
+  const r = rec(s.id);
+  if (r.status === 'done') return 'done';
+  if (r.status === 'skipped') return 'skipped';
+  if (eff(s) < TODAY) return 'missed';
+  return (r.movedTo && r.movedTo !== s.date) ? 'moved' : 'planned';
+}
+const isLower = s => s.lift === 'A' || s.lift === 'C';
+const isIntervals = s => s.kind === 'intervals' || s.kind === 'fartlek';
+const sortSessions = arr => arr.sort((a, b) => (a.type === b.type ? a.date.localeCompare(b.date) : (a.type === 'run' ? -1 : 1)));
+function sessionsOn(d) { return sortSessions(SESS.filter(s => eff(s) === d)); }
+function weekOf(d) { return PLAN.weeks.find(w => d >= w.start && d <= addDays(w.start, 6)) || null; }
+function clampWeek(d) { if (d < PLAN.start) return PLAN.weeks[0]; if (d > PLAN.end) return PLAN.weeks[PLAN.weeks.length - 1]; return weekOf(d); }
+function missedSessions() { return SESS.filter(s => statusOf(s) === 'missed').sort((a, b) => eff(b).localeCompare(eff(a))); }
+
+// Rules from the plan. Moves are never blocked; these only produce warnings.
+function warningsFor(s, d) {
+  const w = [];
+  const others = sessionsOn(d).filter(x => x.id !== s.id && statusOf(x) !== 'skipped');
+  const near = dd => sessionsOn(dd).filter(x => x.id !== s.id && statusOf(x) !== 'skipped');
+  if (dow(d) === 3) w.push('Thursday is your rest day.');
+  if ((isLower(s) && others.some(isIntervals)) || (isIntervals(s) && others.some(isLower)))
+    w.push('Lower-body lift on the same day as intervals or fartlek.');
+  if (isLower(s) && (near(addDays(d, -1)).some(isLower) || near(addDays(d, 1)).some(isLower)))
+    w.push('Two lower-body lifts on consecutive days.');
+  if (s.lift === 'C' && near(addDays(d, 1)).some(x => x.kind === 'long'))
+    w.push('Lift C the day before the long run.');
+  if (s.kind === 'long' && near(addDays(d, -1)).some(x => x.lift === 'C'))
+    w.push('Lift C the day before the long run.');
+  if (others.length + 1 > 2) w.push('More than 2 sessions on one day (' + (others.length + 1) + ').');
+  if (HARD.includes(s.kind) && dow(d) === 2) w.push('Hard run (intervals, tempo or long run) on a Wednesday.');
+  return w;
+}
+function suggestDate(s) {
+  const start = statusOf(s) === 'missed' ? TODAY : addDays(eff(s), 1);
+  for (let i = 0; i < 14; i++) { const d = addDays(start, i); if (warningsFor(s, d).length === 0) return d; }
+  return start;
+}
+
+// ------------------------------------------------------------------ UI state
+const UI = { view: 'today', viewDate: TODAY, weekN: null, open: new Set(), form: null, missedOpen: null, missedAll: false, syncing: false, move: null };
+const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const $ = sel => document.querySelector(sel);
+
+function render() {
+  TODAY = todayISO();
+  document.querySelectorAll('#nav button').forEach(b => b.setAttribute('aria-current', b.dataset.v === UI.view ? 'page' : 'false'));
+  const wk = clampWeek(TODAY);
+  $('#hdr-sub').textContent = TODAY < PLAN.start ? 'Starts ' + fmtDay(PLAN.start) : TODAY > PLAN.end ? 'Plan complete' : 'Week ' + wk.n + ' of ' + PLAN.weeks.length + ' · ' + wk.block;
+  const main = $('#view');
+  main.className = UI.view === 'progress' ? 'wide' : '';
+  if (UI.view === 'today') main.innerHTML = viewToday();
+  else if (UI.view === 'week') main.innerHTML = viewWeek();
+  else if (UI.view === 'progress') { main.innerHTML = viewProgress(); drawCharts(); }
+  else main.innerHTML = viewSettings();
+  renderSync();
+}
+
+// ------------------------------------------------------------------ Today
+function viewToday() {
+  const d = UI.viewDate;
+  const wk = weekOf(d);
+  let h = '<section class="pager"><button class="icon-btn" data-a="day" data-n="-1" aria-label="Previous day">&#8249;</button><div><h1>' +
+    (d === TODAY ? 'Today · ' : '') + esc(fmtDay(d)) + '</h1><p>' +
+    (wk ? 'Week ' + wk.n + ' of ' + PLAN.weeks.length + ' · ' + esc(wk.block) + (wk.deload ? ' · Deload' : '') : (d < PLAN.start ? 'Before the plan starts' : 'After the plan')) +
+    '</p></div><button class="icon-btn" data-a="day" data-n="1" aria-label="Next day">&#8250;</button></section>';
+  if (d !== TODAY) h += '<div class="center"><button class="link-btn" data-a="day-today">Back to today</button></div>';
+  if (d === TODAY) h += missedBanner();
+  const list = sessionsOn(d);
+  if (!list.length) {
+    const next = SESS.filter(s => eff(s) > d && statusOf(s) !== 'skipped' && statusOf(s) !== 'done').sort((a, b) => eff(a).localeCompare(eff(b)))[0];
+    let title = 'Rest day', body = 'Recover, eat well, sleep.';
+    if (d < PLAN.start) { title = 'The plan starts ' + fmtDay(PLAN.start); body = 'In ' + diffDays(d, PLAN.start) + ' day' + (diffDays(d, PLAN.start) === 1 ? '' : 's') + '. Get your baseline test ready for Monday.'; }
+    else if (d > PLAN.end) { title = 'Plan complete'; body = 'Nice work. Your history is in Progress.'; }
+    else if (dow(d) === 3) body = 'Thursday is your full rest day.';
+    h += '<div class="empty"><h2>' + esc(title) + '</h2><p>' + esc(body) + '</p>' +
+      (next ? '<p class="small">Next up: <b>' + esc(next.title) + '</b>, ' + esc(fmtDay(eff(next))) + '</p><button class="btn" data-a="goto-day" data-d="' + eff(next) + '">Show ' + esc(fmtDay(eff(next))) + '</button>' : '') + '</div>';
+  }
+  list.forEach(s => { h += card(s); });
+  return h;
+}
+
+function missedBanner() {
+  const missed = missedSessions();
+  if (!missed.length) return '';
+  const open = UI.missedOpen === null ? missed.length <= 3 : UI.missedOpen;
+  let h = '<section class="banner" id="missed"><div class="banner-head"><strong>' + missed.length + ' missed session' + (missed.length === 1 ? '' : 's') +
+    '</strong><button data-a="toggle-missed">' + (open ? 'Hide' : 'Show') + '</button></div>';
+  if (open) {
+    const shown = UI.missedAll ? missed : missed.slice(0, 6);
+    shown.forEach(s => {
+      h += '<div class="missed-row"><div><b>' + esc(s.title) + '</b><small>' + esc(fmtDay(eff(s))) + '</small></div>' +
+        '<button data-a="move" data-id="' + s.id + '">Move</button><button data-a="skip" data-id="' + s.id + '">Skip</button></div>';
+    });
+    if (missed.length > shown.length) h += '<div class="center"><button class="link-btn" data-a="missed-all">Show all ' + missed.length + '</button></div>';
+    if (missed.length > 3) h += '<div class="center"><button class="link-btn" data-a="skip-all">Skip all missed (keeps notes)</button></div>';
+  }
+  return h + '</section>';
+}
+
+function chips(s) {
+  const r = rec(s.id);
+  let h = '<span class="badge ' + s.type + '">' + (s.type === 'run' ? 'Run' : 'Lift ' + s.lift) + '</span>';
+  if (s.race) h += '<span class="chip race">Race day</span>';
+  if (s.test) h += '<span class="chip test">Test</span>';
+  if (r.movedTo && r.movedTo !== s.date) h += '<span class="chip moved">Moved from ' + esc(fmtDay(s.date)) + '</span>';
+  return h;
+}
+
+function detailsList(s) {
+  return '<ul class="details">' + s.details.map(l => {
+    const hdr = /^(TEST DAY|DELOAD|SHARPEN|RECOVERY WEEK|TAPER|LIGHT)/.test(l);
+    return '<li' + (hdr ? ' class="hdr-line"' : '') + '>' + esc(l) + '</li>';
+  }).join('') + '</ul>';
+}
+
+function loggedSummary(s) {
+  const r = rec(s.id), bits = [];
+  if (r.status === 'done' && r.completedOn) bits.push('Done ' + fmtDay(r.completedOn));
+  if (r.rpe) bits.push('RPE ' + r.rpe);
+  if (r.km) bits.push(r.km + ' km');
+  if (r.min) bits.push(r.min + ' min');
+  if (r.lifts) Object.keys(r.lifts).forEach(k => { const v = r.lifts[k]; if (v && v.w) bits.push(KEY_LIFTS[k] + ' ' + v.w + ' kg x ' + (v.r || '?')); });
+  if (r.test) {
+    const t = r.test;
+    if (t.hang) bits.push('Hang ' + t.hang + ' s');
+    if (t.neg) bits.push('Negative ' + t.neg + ' s');
+    if (t.band) bits.push((PULL_BANDS.find(b => b[0] === t.band) || ['', t.band])[1]);
+    if (t.strict) bits.push(t.strict + ' strict');
+    if (t.pushReps) bits.push('Push-ups ' + t.pushReps + ' @ ' + ((PUSH_STEPS.find(p => p[0] === t.incline) || ['', t.incline || '?'])[1]));
+  }
+  let h = bits.length ? esc(bits.join(' · ')) : '';
+  if (r.note) h += (h ? '<br>' : '') + '&ldquo;' + esc(r.note) + '&rdquo;';
+  return h ? '<div class="logged">' + h + '</div>' : '';
+}
+
+function card(s) {
+  const st = statusOf(s);
+  const r = rec(s.id);
+  let h = '<article class="card ' + s.type + (st === 'done' ? ' is-done' : '') + (st === 'skipped' ? ' is-skipped' : '') + '" id="card-' + s.id + '">';
+  h += '<div class="card-top">' + chips(s) + '</div><h2>' + esc(s.title) + '</h2>';
+  h += detailsList(s);
+  if (st === 'done') h += '<button class="btn-done is-done" data-a="undo" data-id="' + s.id + '">&#10003; Done · tap to undo</button>';
+  else if (st === 'skipped') h += '<button class="btn-done is-skipped" data-a="unskip" data-id="' + s.id + '">Skipped · tap to undo</button>';
+  else h += '<button class="btn-done" data-a="done" data-id="' + s.id + '">Done</button>';
+  h += '<div class="card-actions"><button data-a="form" data-id="' + s.id + '">' + (UI.form === s.id ? 'Close details' : 'Add details') + '</button>';
+  if (st !== 'done') h += '<button data-a="move" data-id="' + s.id + '">Move</button>';
+  if (st !== 'done' && st !== 'skipped') h += '<button data-a="skip" data-id="' + s.id + '">Skip</button>';
+  h += '</div>';
+  if (UI.form === s.id) h += logForm(s);
+  else h += loggedSummary(s);
+  return h + '</article>';
+}
+
+function logForm(s) {
+  const r = rec(s.id);
+  let h = '<form class="logform" data-id="' + s.id + '"><div class="fld">Effort (RPE 1-10)<div class="rpe">';
+  for (let i = 1; i <= 10; i++) h += '<label><input type="radio" name="rpe" value="' + i + '"' + (Number(r.rpe) === i ? ' checked' : '') + '><span>' + i + '</span></label>';
+  h += '</div></div>';
+  if (s.type === 'run') {
+    h += '<div class="row2"><label>Distance (km)<input name="km" inputmode="decimal" value="' + esc(r.km || '') + '" placeholder="' + (s.plannedKm || '') + '"></label>' +
+      '<label>Time (min)<input name="min" inputmode="decimal" value="' + esc(r.min || '') + '" placeholder="' + (s.plannedMin || '') + '"></label></div>';
+  } else {
+    h += '<div class="form-sub">Top set (optional)</div>';
+    (s.keyLifts || []).forEach(k => {
+      const v = (r.lifts || {})[k] || {};
+      h += '<div class="lift-row"><span>' + esc(KEY_LIFTS[k]) + '</span><input name="w_' + k + '" inputmode="decimal" placeholder="kg" aria-label="' + esc(KEY_LIFTS[k]) + ' kg" value="' + esc(v.w || '') + '"><span class="center">x</span><input name="r_' + k + '" inputmode="numeric" placeholder="reps" aria-label="' + esc(KEY_LIFTS[k]) + ' reps" value="' + esc(v.r || '') + '"></div>';
+    });
+  }
+  if (s.test) {
+    const t = r.test || {};
+    h += '<div class="form-sub">Pull-up test</div><div class="row2"><label>Dead hang (s)<input name="t_hang" inputmode="decimal" value="' + esc(t.hang || '') + '"></label>' +
+      '<label>Best negative (s)<input name="t_neg" inputmode="decimal" value="' + esc(t.neg || '') + '"></label></div>' +
+      '<div class="row2"><label>Band for 5 clean reps<select name="t_band"><option value="">Choose</option>' +
+      PULL_BANDS.map(b => '<option value="' + b[0] + '"' + (t.band === b[0] ? ' selected' : '') + '>' + b[1] + '</option>').join('') + '</select></label>' +
+      '<label>Strict reps<input name="t_strict" inputmode="numeric" value="' + esc(t.strict || '') + '" placeholder="0"></label></div>' +
+      '<div class="form-sub">Push-up test</div><div class="row2"><label>Incline<select name="t_incline"><option value="">Choose</option>' +
+      PUSH_STEPS.map(p => '<option value="' + p[0] + '"' + (t.incline === p[0] ? ' selected' : '') + '>' + p[1] + '</option>').join('') + '</select></label>' +
+      '<label>Clean reps<input name="t_pushReps" inputmode="numeric" value="' + esc(t.pushReps || '') + '"></label></div>';
+  }
+  h += '<label>Note<textarea name="note" placeholder="How did it feel?">' + esc(r.note || '') + '</textarea></label>' +
+    '<div class="modal-actions"><button type="button" class="btn" data-a="form" data-id="' + s.id + '">Cancel</button><button type="submit" class="btn primary">Save details</button></div></form>';
+  return h;
+}
+
+const num = v => { if (v == null) return null; const n = parseFloat(String(v).replace(',', '.')); return isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : null; };
+
+function saveForm(form) {
+  const id = form.dataset.id, s = BYID[id], r = rec(id), fd = new FormData(form), patch = {};
+  const same = (a, b) => JSON.stringify(a == null ? null : a) === JSON.stringify(b == null ? null : b);
+  const rpe = num(fd.get('rpe'));
+  if (!same(rpe, r.rpe)) patch.rpe = rpe;
+  const note = (fd.get('note') || '').trim() || null;
+  if (!same(note, r.note)) patch.note = note;
+  if (s.type === 'run') {
+    const km = num(fd.get('km')), min = num(fd.get('min'));
+    if (!same(km, r.km)) patch.km = km;
+    if (!same(min, r.min)) patch.min = min;
+  } else {
+    const lifts = {};
+    (s.keyLifts || []).forEach(k => { const w = num(fd.get('w_' + k)), rp = num(fd.get('r_' + k)); if (w || rp) lifts[k] = { w, r: rp }; });
+    const v = Object.keys(lifts).length ? lifts : null;
+    if (!same(v, r.lifts)) patch.lifts = v;
+  }
+  if (s.test) {
+    const t = { hang: num(fd.get('t_hang')), neg: num(fd.get('t_neg')), band: fd.get('t_band') || null, strict: num(fd.get('t_strict')), incline: fd.get('t_incline') || null, pushReps: num(fd.get('t_pushReps')) };
+    Object.keys(t).forEach(k => { if (t[k] == null) delete t[k]; });
+    const v = Object.keys(t).length ? t : null;
+    if (!same(v, r.test)) patch.test = v;
+  }
+  UI.form = null;
+  if (Object.keys(patch).length) { setFields(id, patch); toast('Details saved'); }
+  render();
+}
+
+// ------------------------------------------------------------------ actions
+function markDone(id) {
+  const before = snapshot(id, ['status', 'completedOn']);
+  setFields(id, { status: 'done', completedOn: TODAY });
+  render();
+  toast('Marked done', () => { setFields(id, before); render(); });
+}
+function undoDone(id) {
+  const before = snapshot(id, ['status', 'completedOn']);
+  setFields(id, { status: null, completedOn: null });
+  render();
+  toast('Back to planned', () => { setFields(id, before); render(); });
+}
+function skip(id) {
+  const before = snapshot(id, ['status']);
+  setFields(id, { status: 'skipped' });
+  render();
+  toast('Skipped (not rescheduled)', () => { setFields(id, before); render(); });
+}
+function doMove(id, d) {
+  const s = BYID[id], r = rec(id);
+  const before = snapshot(id, ['movedTo', 'status']);
+  const patch = { movedTo: d === s.date ? null : d };
+  if (r.status === 'skipped') patch.status = null;
+  setFields(id, patch);
+  UI.move = null;
+  closeModal();
+  render();
+  toast('Moved to ' + fmtDay(d), () => { setFields(id, before); render(); });
+}
+function skipAllMissed() {
+  const list = missedSessions();
+  if (!confirm('Skip all ' + list.length + ' missed sessions? They stay in your history as skipped.')) return;
+  list.forEach(s => setFields(s.id, { status: 'skipped' }));
+  render();
+  toast('Skipped ' + list.length + ' sessions');
+}
+
+// ------------------------------------------------------------------ Move dialog
+function openMove(id) {
+  const s = BYID[id];
+  UI.move = { id, date: suggestDate(s) };
+  renderMove();
+}
+function renderMove() {
+  if (!UI.move) return closeModal();
+  const s = BYID[UI.move.id], d = UI.move.date, suggested = suggestDate(s);
+  const warns = isValidISO(d) ? warningsFor(s, d) : [];
+  const r = rec(s.id);
+  const quick = [[TODAY, 'Today'], [addDays(TODAY, 1), 'Tomorrow'], [suggested, 'Suggested: ' + fmtShort(suggested)]];
+  if (r.movedTo && r.movedTo !== s.date) quick.push([s.date, 'Original: ' + fmtShort(s.date)]);
+  const seen = new Set();
+  let h = '<div class="modal-bg" data-a="modal-bg"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mv-title">' +
+    '<h2 id="mv-title">Move: ' + esc(s.title) + '</h2><p>Planned for ' + esc(fmtDay(s.date)) + (r.movedTo ? ', now on ' + esc(fmtDay(eff(s))) : '') + '</p><div class="quick">';
+  quick.forEach(([qd, label]) => { if (seen.has(label)) return; seen.add(label); h += '<button data-a="mv-pick" data-d="' + qd + '" class="' + (qd === d ? 'on' : '') + '">' + esc(label) + '</button>'; });
+  h += '</div><label class="fld">New date<input type="date" class="field" id="mv-date" value="' + esc(d) + '"></label>';
+  if (isValidISO(d)) {
+    const there = sessionsOn(d).filter(x => x.id !== s.id && statusOf(x) !== 'skipped');
+    if (there.length) h += '<p class="small">Already on ' + esc(fmtDay(d)) + ': ' + there.map(x => esc(x.title)).join(', ') + '</p>';
+    if (warns.length) h += '<div class="warns" role="alert"><b>Heads up, this breaks a rule:</b><ul>' + warns.map(w => '<li>' + esc(w) + '</li>').join('') + '</ul>You can still move it.</div>';
+    else h += '<p class="oknote">&#10003; No rule conflicts on ' + esc(fmtDay(d)) + '.</p>';
+  }
+  h += '<div class="modal-actions"><button class="btn" data-a="mv-cancel">Cancel</button><button class="btn primary" data-a="mv-ok"' + (isValidISO(d) ? '' : ' disabled') + '>' + (warns.length ? 'Move anyway' : 'Move') + '</button></div></div></div>';
+  $('#modal-root').innerHTML = h;
+  const inp = $('#mv-date');
+  inp.addEventListener('change', () => { UI.move.date = inp.value; renderMove(); });
+}
+function closeModal() { $('#modal-root').innerHTML = ''; }
+
+// ------------------------------------------------------------------ Week
+function viewWeek() {
+  const wk = PLAN.weeks.find(w => w.n === UI.weekN) || clampWeek(TODAY);
+  UI.weekN = wk.n;
+  const end = addDays(wk.start, 6);
+  const own = SESS.filter(s => s.week === wk.n);
+  const done = own.filter(s => statusOf(s) === 'done').length;
+  let h = '<section class="pager"><button class="icon-btn" data-a="week" data-n="-1" aria-label="Previous week"' + (wk.n === 1 ? ' disabled' : '') + '>&#8249;</button><div><h1>Week ' + wk.n + ' of ' + PLAN.weeks.length +
+    '</h1><p>' + esc(fmtShort(wk.start)) + ' to ' + esc(fmtShort(end)) + ' · ' + esc(wk.label) + '</p></div><button class="icon-btn" data-a="week" data-n="1" aria-label="Next week"' + (wk.n === PLAN.weeks.length ? ' disabled' : '') + '>&#8250;</button></section>';
+  h += '<div class="blocks" aria-label="Blocks">' + PLAN.blocks.map(b => '<div class="' + (b.name === wk.block ? 'on' : '') + '">' + esc(b.name.replace('Half marathon recovery', 'Recovery')) + '</div>').join('') + '</div>';
+  const tags = [];
+  if (wk.deload) tags.push('DELOAD');
+  if (wk.test) tags.push('TEST MONDAY');
+  if (wk.raceWeek) tags.push('RACE WEEK');
+  if (wk.note || tags.length) h += '<p class="weeknote">' + (tags.length ? '<b>' + tags.join(' · ') + '</b><br>' : '') + esc(wk.note) + '</p>';
+  if (wk.n !== clampWeek(TODAY).n) h += '<div class="center"><button class="link-btn" data-a="week-now">Go to this week</button></div>';
+  h += '<div class="small">' + done + ' of ' + own.length + ' sessions done</div><div class="meter"><i style="width:' + Math.round(100 * done / own.length) + '%"></i></div>';
+  for (let i = 0; i < 7; i++) {
+    const d = addDays(wk.start, i);
+    const list = sessionsOn(d);
+    const ghosts = SESS.filter(s => s.date === d && eff(s) !== d);
+    h += '<div class="day' + (d === TODAY ? ' today' : '') + '"><div class="dname">' + DOWS[i] + '<small>' + esc(fmtShort(d)) + '</small></div><div>';
+    if (!list.length && !ghosts.length) h += '<div class="rest">' + (i === 3 ? 'Rest (Thursday)' : 'Rest') + '</div>';
+    list.forEach(s => { h += weekRow(s); });
+    ghosts.forEach(s => { h += '<div class="ghost">' + esc(s.title) + ' · moved to ' + esc(fmtDay(eff(s))) + '</div>'; });
+    h += '</div></div>';
+  }
+  return h;
+}
+const ST_LABEL = { planned: 'Planned', done: 'Done', moved: 'Moved', skipped: 'Skipped', missed: 'Missed' };
+function weekRow(s) {
+  const st = statusOf(s), open = UI.open.has(s.id), r = rec(s.id);
+  let h = '<div class="srow" id="row-' + s.id + '"><button class="srow-main" data-a="expand" data-id="' + s.id + '" aria-expanded="' + open + '"><span class="dot ' + s.type + '"></span><span class="t">' + esc(s.title) +
+    (r.movedTo && r.movedTo !== s.date ? '<br><small class="muted">moved from ' + esc(fmtDay(s.date)) + '</small>' : '') +
+    '</span><span class="st st-' + st + '">' + ST_LABEL[st] + '</span></button>';
+  if (open) h += '<div class="srow-body"><div class="card-top">' + chips(s) + '</div>' + detailsList(s) + loggedSummary(s) + '</div>';
+  h += '<div class="srow-actions">';
+  if (st === 'done') h += '<button data-a="undo" data-id="' + s.id + '">Undo done</button>';
+  else if (st === 'skipped') h += '<button data-a="unskip" data-id="' + s.id + '">Undo skip</button><button data-a="move" data-id="' + s.id + '">Move</button>';
+  else h += '<button class="primary" data-a="done" data-id="' + s.id + '">Done</button><button data-a="move" data-id="' + s.id + '">Move</button>';
+  h += '<button data-a="goto-day" data-d="' + eff(s) + '" data-form="' + s.id + '">Details</button></div>';
+  return h + '</div>';
+}
+
+// ------------------------------------------------------------------ Progress data
+function weekStats() {
+  return PLAN.weeks.map(w => {
+    const own = SESS.filter(s => s.week === w.n);
+    const done = own.filter(s => statusOf(s) === 'done');
+    const runs = own.filter(s => s.type === 'run');
+    const actualKm = runs.reduce((a, s) => a + runActualKm(s), 0);
+    const long = own.find(s => s.kind === 'long');
+    return {
+      n: w.n, start: w.start, block: w.block, planned: own.length,
+      doneRuns: done.filter(s => s.type === 'run').length, doneLifts: done.filter(s => s.type === 'lift').length,
+      plannedRuns: runs.length, plannedLifts: own.length - runs.length,
+      plannedKm: runs.reduce((a, s) => a + (s.plannedKm || 0), 0), actualKm,
+      longPlanned: long ? long.plannedKm : null, longActual: long && statusOf(long) === 'done' ? runActualKm(long) : null,
+      ended: addDays(w.start, 6) < TODAY, current: TODAY >= w.start && TODAY <= addDays(w.start, 6)
+    };
+  });
+}
+function runActualKm(s) {
+  const r = rec(s.id);
+  if (r.status !== 'done') return 0;
+  if (r.km) return r.km;
+  if (r.min && s.plannedMin) return Math.round(r.min * (s.plannedKm / s.plannedMin) * 10) / 10;
+  return s.plannedKm || 0;
+}
+const goodWeek = w => (w.doneRuns + w.doneLifts) >= Math.min(6, w.planned - 1);
+function streak(stats) {
+  let n = 0;
+  const cur = stats.find(w => w.current);
+  const finished = stats.filter(w => w.ended);
+  for (let i = finished.length - 1; i >= 0; i--) { if (goodWeek(finished[i])) n++; else break; }
+  if (cur && goodWeek(cur)) n++;
+  return n;
+}
+function testResults() {
+  return SESS.filter(s => s.test && rec(s.id).test).map(s => ({ s, d: rec(s.id).completedOn || eff(s), t: rec(s.id).test })).sort((a, b) => a.d.localeCompare(b.d));
+}
+function pullStep(t) {
+  if (!t) return 0;
+  if ((t.strict || 0) >= 2) return 5;
+  if ((t.strict || 0) >= 1) return 4;
+  return { light: 3, medium: 2, heavy: 1, strict: 4 }[t.band] || 0;
+}
+function pullReady(step, t) {
+  if (step === 0) return (t.neg || 0) >= 10 && (t.hang || 0) >= 30;
+  if (step === 3) return (t.neg || 0) >= 15;
+  if (step === 5) return (t.strict || 0) >= 3;
+  return false;
+}
+function strengthSeries() {
+  const out = {};
+  SESS.forEach(s => {
+    const r = rec(s.id);
+    if (!r.lifts) return;
+    Object.keys(r.lifts).forEach(k => {
+      const v = r.lifts[k];
+      if (!v || !v.w) return;
+      (out[k] = out[k] || []).push({ d: r.completedOn || eff(s), w: v.w, r: v.r });
+    });
+  });
+  Object.values(out).forEach(a => a.sort((x, y) => x.d.localeCompare(y.d)));
+  return out;
+}
+function dayStatus(d) {
+  const list = sessionsOn(d);
+  const movedAway = SESS.some(s => s.date === d && eff(s) !== d);
+  if (!list.length) return movedAway ? 'moved' : 'rest';
+  const sts = list.map(statusOf);
+  if (sts.includes('missed')) return 'missed';
+  if (sts.every(x => x === 'done')) return 'done';
+  if (sts.some(x => x === 'planned' || x === 'moved')) return d < TODAY ? 'missed' : (sts.every(x => x === 'moved') ? 'moved' : 'upcoming');
+  if (sts.every(x => x === 'skipped')) return 'skipped';
+  return 'done';
+}
+
+// ------------------------------------------------------------------ Progress view
+function viewProgress() {
+  const stats = weekStats();
+  const cur = stats.find(w => w.current) || (TODAY < PLAN.start ? stats[0] : stats[stats.length - 1]);
+  const totalDone = SESS.filter(s => statusOf(s) === 'done').length;
+  const due = SESS.filter(s => eff(s) <= TODAY || statusOf(s) === 'done').length;
+  const races = PLAN.races.map(r => { const n = diffDays(TODAY, r.date); return { name: r.name, v: n > 0 ? n : n === 0 ? 'Today' : 'Done', s: n > 0 ? 'days to go · ' + fmtShort(r.date) : n === 0 ? 'Race day!' : fmtShort(r.date) }; });
+  let h = '<div class="dash">';
+  h += '<div class="tiles">' +
+    tile('This week', (cur.doneRuns + cur.doneLifts) + ' / ' + cur.planned, 'Week ' + cur.n + ' sessions done') +
+    tile('Overall', totalDone + ' / ' + due, 'done of ' + due + ' due so far · ' + SESS.length + ' in plan') +
+    tile('Streak', streak(stats) + ' wk', 'weeks with 6+ of 7 done') +
+    races.map(r => tile(r.name, r.v, r.s)).join('') + '</div>';
+
+  // heatmap
+  h += '<section class="pcard span-5"><h2>Consistency</h2><p class="sub">Every day of the plan, colored by status. Tap a day for details.</p>' +
+    legend([['var(--good)', 'Done'], ['var(--crit)', 'Missed'], ['var(--moved)', 'Moved'], ['var(--skip)', 'Skipped'], ['var(--upcoming)', 'Upcoming']]) +
+    '<div class="heat" role="grid" aria-label="Calendar heatmap"><div></div>' + DOWS.map(d => '<div class="hd">' + d[0] + '</div>').join('');
+  const raceDates = PLAN.races.map(r => r.date);
+  PLAN.weeks.forEach(w => {
+    h += '<div class="wl' + (w.n === cur.n ? ' cur' : '') + '">W' + w.n + ' ' + esc(fmtShort(w.start)) + '</div>';
+    for (let i = 0; i < 7; i++) {
+      const d = addDays(w.start, i), st = dayStatus(d), list = sessionsOn(d);
+      const tip = fmtDay(d) + ': ' + (list.length ? list.map(s => s.title + ' (' + ST_LABEL[statusOf(s)].toLowerCase() + ')').join(', ') : (st === 'moved' ? 'sessions moved away' : 'rest'));
+      h += '<button class="hc ' + st + (d === TODAY ? ' today' : '') + (raceDates.includes(d) ? ' race' : '') + '" data-tip="' + esc(tip) + '" aria-label="' + esc(tip) + '"></button>';
+    }
+  });
+  h += '</div></section>';
+
+  const anyDone = totalDone > 0;
+  h += '<section class="pcard span-7"><h2>Weekly adherence</h2><p class="sub">Planned vs completed sessions per week.</p>' +
+    (anyDone ? legend([['var(--run)', 'Runs done'], ['var(--lift)', 'Lifts done'], ['var(--plan-fill)', 'Planned']]) + '<div class="chart" data-chart="adherence"></div>' +
+      table(['Week', 'Planned', 'Runs done', 'Lifts done'], stats.map(w => ['W' + w.n, w.planned, w.doneRuns, w.doneLifts]))
+      : emptyState('No completed sessions yet', 'Tap Done on the Today screen and this chart fills in.')) + '</section>';
+
+  const anyRun = stats.some(w => w.actualKm > 0);
+  h += '<section class="pcard span-6"><h2>Running volume</h2><p class="sub">Planned vs actual km per week. Done runs without a logged distance count as planned.</p>' +
+    (anyRun ? legend([['var(--plan-fill)', 'Planned km'], ['var(--run)', 'Actual km']]) + '<div class="chart" data-chart="volume"></div>' +
+      table(['Week', 'Planned km', 'Actual km'], stats.map(w => ['W' + w.n, w.plannedKm.toFixed(1), w.actualKm.toFixed(1)]))
+      : emptyState('No runs done yet', 'Your weekly km appear here once you finish a run.')) + '</section>';
+
+  const anyLong = stats.some(w => w.longActual);
+  h += '<section class="pcard span-6"><h2>Long run</h2><p class="sub">Long-run distance by week.</p>' +
+    (anyLong ? legend([['var(--muted)', 'Planned', 'dash'], ['var(--run)', 'Actual', 'ln']]) + '<div class="chart" data-chart="long"></div>' +
+      table(['Week', 'Planned km', 'Actual km'], stats.filter(w => w.longPlanned).map(w => ['W' + w.n, w.longPlanned, w.longActual == null ? '' : w.longActual]))
+      : emptyState('No long runs done yet', 'Finish a Sunday long run to start this line.')) + '</section>';
+
+  const ss = strengthSeries();
+  const keys = KEY_LIFT_ORDER.filter(k => ss[k] && ss[k].length);
+  h += '<section class="pcard span-12"><h2>Strength</h2><p class="sub">Top-set load over time for the key lifts you logged (Add details on a lift card).</p>' +
+    (keys.length ? '<div class="minis">' + keys.map(k => '<div class="mini"><h3>' + esc(KEY_LIFTS[k]) + ' <span class="muted small">best ' + Math.max(...ss[k].map(p => p.w)) + ' kg</span></h3><div class="chart" data-chart="lift" data-k="' + k + '"></div></div>').join('') + '</div>' +
+      table(['Date', 'Lift', 'Load (kg)', 'Reps'], keys.flatMap(k => ss[k].map(p => [fmtShort(p.d), KEY_LIFTS[k], p.w, p.r || ''])))
+      : emptyState('No top sets logged yet', 'Log hip thrust, leg press, row, lat pulldown or split squat in Add details.')) + '</section>';
+
+  h += viewSkills();
+  h += viewNotes();
+  h += '<section class="pcard span-12"><h2>Your data</h2><p class="sub">Everything you logged, one row per session.</p><button class="btn" data-a="csv">Download my data (CSV)</button></section>';
+  return h + '</div>';
+}
+function tile(k, v, s) { return '<div class="tile"><div class="k">' + esc(k) + '</div><div class="v">' + esc(v) + '</div><div class="s">' + esc(s) + '</div></div>'; }
+function legend(items) { return '<div class="legend">' + items.map(([c, l, kind]) => '<span><i class="' + (kind || '') + '" style="background:' + c + '"></i>' + esc(l) + '</span>').join('') + '</div>'; }
+function emptyState(t, b) { return '<div class="empty"><h2>' + esc(t) + '</h2><p class="small">' + esc(b) + '</p></div>'; }
+function table(head, rows) { return '<details class="tbl"><summary>Show as table</summary><table><thead><tr>' + head.map(x => '<th>' + esc(x) + '</th>').join('') + '</tr></thead><tbody>' + rows.map(r => '<tr>' + r.map(x => '<td>' + esc(x) + '</td>').join('') + '</tr>').join('') + '</tbody></table></details>'; }
+
+function viewSkills() {
+  const tests = testResults();
+  const testDates = SESS.filter(s => s.test).map(s => fmtShort(s.date)).join(', ');
+  let h = '<section class="pcard span-12"><h2>Pull-up and push-up</h2><p class="sub">Test every other Monday (' + esc(testDates) + '). Log it with Add details on the Lift B test card.</p>';
+  if (!tests.length) return h + emptyState('No tests logged yet', 'Your first test is Mon Oct 26 (baseline).') + '</section>';
+  const pullT = tests.filter(x => x.t.hang || x.t.neg || x.t.band || x.t.strict != null);
+  const pushT = tests.filter(x => x.t.pushReps);
+  h += '<div class="two">';
+  // pull-up
+  const lastPull = pullT.length ? pullT[pullT.length - 1].t : null;
+  const step = pullStep(lastPull);
+  h += '<div><h3>Pull-up</h3>' + (pullT.length ? legend([['var(--run)', 'Best negative (s)', 'ln'], ['var(--lift)', 'Dead hang (s)', 'ln']]) + '<div class="chart" data-chart="pull"></div>' : '<p class="small">No pull-up results yet.</p>') +
+    '<ol class="ladder">' + PULL_LADDER.map((l, i) => '<li class="' + (i < step ? 'past' : i === step ? 'cur' : '') + '">' + esc(l.name) + (i === step ? ' (you are here)' : '') + '</li>').join('') + '</ol>' +
+    '<div class="nextstep"><b>Next:</b> ' + esc(PULL_LADDER[step].next) + (lastPull && pullReady(step, lastPull) ? ' <b>Your last test says you are ready.</b>' : '') +
+    (lastPull && lastPull.strict ? '<br>Strict reps at last test: <b>' + lastPull.strict + '</b>' : '') + '</div></div>';
+  // push-up
+  const lastPush = pushT.length ? pushT[pushT.length - 1].t : null;
+  const pi = lastPush ? Math.max(0, PUSH_STEPS.findIndex(p => p[0] === lastPush.incline)) : 0;
+  const floorDone = lastPush && lastPush.incline === 'floor' && lastPush.pushReps >= 10;
+  h += '<div><h3>Push-up</h3>' + (pushT.length ? legend([['var(--run)', 'Clean reps at test', 'ln']]) + '<div class="chart" data-chart="push"></div>' : '<p class="small">No push-up results yet.</p>') +
+    '<ol class="ladder">' + PUSH_STEPS.map((p, i) => '<li class="' + (i < pi ? 'past' : i === pi ? 'cur' : '') + '">' + esc(p[1]) + (i === pi ? ' (you are here)' : '') + '</li>').join('') + '</ol>' +
+    '<div class="nextstep"><b>Next:</b> ' + (pi === PUSH_STEPS.length - 1 ? (floorDone ? 'You hit 10 floor reps. Build to 3 x 10 in practice.' : 'Build floor push-ups to 3 x 10.') :
+      'When you get 3 x 10 clean reps at ' + esc(PUSH_STEPS[pi][1]) + ', move to ' + esc(PUSH_STEPS[pi + 1][1]) + '.') +
+    (lastPush && lastPush.pushReps >= 10 && pi < PUSH_STEPS.length - 1 ? ' <b>Your last test hit 10+, try one step lower.</b>' : '') + '</div></div>';
+  h += '</div>' + table(['Date', 'Hang (s)', 'Negative (s)', 'Band', 'Strict', 'Incline', 'Push-ups'], tests.map(x => [fmtShort(x.d), x.t.hang || '', x.t.neg || '', x.t.band || '', x.t.strict == null ? '' : x.t.strict, x.t.incline || '', x.t.pushReps || '']));
+  return h + '</section>';
+}
+
+function viewNotes() {
+  const items = SESS.filter(s => rec(s.id).note || rec(s.id).rpe).map(s => ({ s, r: rec(s.id) }))
+    .sort((a, b) => ((b.r.completedOn || eff(b.s)).localeCompare(a.r.completedOn || eff(a.s))) || ((b.r.updatedAt || 0) - (a.r.updatedAt || 0))).slice(0, 20);
+  let h = '<section class="pcard span-12"><h2>Recent notes and RPE</h2><p class="sub">Newest first.</p>';
+  if (!items.length) return h + emptyState('No notes yet', 'Add an RPE or a note with Add details after a session.') + '</section>';
+  h += '<ul class="notes">' + items.map(({ s, r }) => '<li><div class="meta"><span>' + esc(fmtDay(r.completedOn || eff(s))) + '</span><span>' + esc(s.title) + '</span>' + (r.rpe ? '<span class="rpechip">RPE ' + r.rpe + '</span>' : '') + '</div>' + (r.note ? esc(r.note) : '') + '</li>').join('') + '</ul>';
+  return h + '</section>';
+}
+
+// ------------------------------------------------------------------ charts (inline SVG, no libraries)
+function niceStep(raw) { const p = Math.pow(10, Math.floor(Math.log10(raw || 1))); const n = raw / p; return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p; }
+function yScale(max, count) { const step = niceStep((max || 1) / (count || 4)); const top = Math.max(step, Math.ceil((max || 1) / step) * step); const ticks = []; for (let v = 0; v <= top + 1e-9; v += step) ticks.push(Math.round(v * 100) / 100); return { top, ticks }; }
+function topRounded(x, y, w, h, r) {
+  if (h <= 0 || w <= 0) return '';
+  r = Math.min(r, w / 2, h);
+  return 'M' + x + ',' + (y + h) + 'V' + (y + r) + 'Q' + x + ',' + y + ' ' + (x + r) + ',' + y + 'H' + (x + w - r) + 'Q' + (x + w) + ',' + y + ' ' + (x + w) + ',' + (y + r) + 'V' + (y + h) + 'Z';
+}
+function frame(W, H, M, ys, fmtY) {
+  let g = '';
+  ys.ticks.forEach(v => {
+    const y = M.t + (H - M.t - M.b) * (1 - v / ys.top);
+    g += '<line x1="' + M.l + '" x2="' + (W - M.r) + '" y1="' + y + '" y2="' + y + '" style="stroke:' + (v === 0 ? 'var(--axis)' : 'var(--line)') + ';stroke-width:1"/>';
+    g += '<text x="' + (M.l - 6) + '" y="' + (y + 4) + '" text-anchor="end" style="font-variant-numeric:tabular-nums">' + (fmtY ? fmtY(v) : v) + '</text>';
+  });
+  return g;
+}
+function weekBars(el, stats, mode) {
+  const W = Math.max(280, el.clientWidth || 600), H = 200, M = { l: 34, r: 6, t: 10, b: 24 };
+  const pw = W - M.l - M.r, ph = H - M.t - M.b, band = pw / stats.length;
+  const max = mode === 'adherence' ? Math.max(...stats.map(w => w.planned)) : Math.max(...stats.map(w => Math.max(w.plannedKm, w.actualKm)));
+  const ys = yScale(max, 4);
+  const Y = v => M.t + ph * (1 - v / ys.top);
+  let g = frame(W, H, M, ys);
+  const showEvery = band < 26 ? 2 : 1;
+  stats.forEach((w, i) => {
+    const x0 = M.l + i * band;
+    if (mode === 'adherence') {
+      const bw = Math.max(4, band * 0.62), x = x0 + (band - bw) / 2;
+      g += '<path d="' + topRounded(x, Y(w.planned), bw, ph - (Y(w.planned) - M.t), 4) + '" style="fill:var(--plan-fill)"/>';
+      const hr = ph * w.doneRuns / ys.top, hl = ph * w.doneLifts / ys.top;
+      const base = M.t + ph;
+      if (w.doneRuns) g += (w.doneLifts ? '<rect x="' + x + '" y="' + (base - hr) + '" width="' + bw + '" height="' + hr + '" style="fill:var(--run)"/>' : '<path d="' + topRounded(x, base - hr, bw, hr, 4) + '" style="fill:var(--run)"/>');
+      if (w.doneLifts) g += '<path d="' + topRounded(x, base - hr - hl - (w.doneRuns ? 2 : 0), bw, hl, 4) + '" style="fill:var(--lift)"/>';
+      g += '<rect x="' + x0 + '" y="' + M.t + '" width="' + band + '" height="' + ph + '" fill="transparent" data-tip="' + esc('Week ' + w.n + ' (' + fmtShort(w.start) + '): ' + (w.doneRuns + w.doneLifts) + ' of ' + w.planned + ' done · ' + w.doneRuns + '/' + w.plannedRuns + ' runs, ' + w.doneLifts + '/' + w.plannedLifts + ' lifts') + '"/>';
+    } else {
+      const bw = Math.max(3, band * 0.34), gap = 2, x = x0 + (band - 2 * bw - gap) / 2;
+      g += '<path d="' + topRounded(x, Y(w.plannedKm), bw, ph - (Y(w.plannedKm) - M.t), 3) + '" style="fill:var(--plan-fill)"/>';
+      if (w.actualKm) g += '<path d="' + topRounded(x + bw + gap, Y(w.actualKm), bw, ph - (Y(w.actualKm) - M.t), 3) + '" style="fill:var(--run)"/>';
+      g += '<rect x="' + x0 + '" y="' + M.t + '" width="' + band + '" height="' + ph + '" fill="transparent" data-tip="' + esc('Week ' + w.n + ': ' + w.actualKm.toFixed(1) + ' km done of ' + w.plannedKm.toFixed(1) + ' km planned') + '"/>';
+    }
+    if (i % showEvery === 0) g += '<text x="' + (x0 + band / 2) + '" y="' + (H - 7) + '" text-anchor="middle"' + (w.current ? ' style="font-weight:700;fill:var(--ink)"' : '') + '>' + w.n + '</text>';
+  });
+  el.innerHTML = '<svg width="' + W + '" height="' + H + '" role="img" aria-label="' + (mode === 'adherence' ? 'Weekly adherence chart' : 'Weekly running volume chart') + '">' + g + '</svg>';
+}
+// series: [{color, dashed, points:[{x, y, tip}]}]; x numeric
+function lineChart(el, opt) {
+  const W = Math.max(240, el.clientWidth || 500), H = opt.height || 170, M = { l: 34, r: 12, t: 12, b: 24 };
+  const pw = W - M.l - M.r, ph = H - M.t - M.b;
+  const allY = opt.series.flatMap(s => s.points.map(p => p.y));
+  const ys = yScale(Math.max(...allY, 1) * 1.05, 4);
+  const X = x => M.l + (opt.xMax === opt.xMin ? pw / 2 : pw * (x - opt.xMin) / (opt.xMax - opt.xMin));
+  const Y = v => M.t + ph * (1 - v / ys.top);
+  let g = frame(W, H, M, ys);
+  (opt.xTicks || []).forEach(t => { g += '<text x="' + X(t.x) + '" y="' + (H - 7) + '" text-anchor="middle">' + esc(t.label) + '</text>'; });
+  opt.series.forEach(s => {
+    const pts = s.points;
+    if (pts.length > 1) g += '<path d="' + pts.map((p, i) => (i ? 'L' : 'M') + X(p.x).toFixed(1) + ',' + Y(p.y).toFixed(1)).join('') + '" style="fill:none;stroke:' + s.color + ';stroke-width:2;stroke-linejoin:round;stroke-linecap:round' + (s.dashed ? ';stroke-dasharray:4 4' : '') + '"/>';
+    pts.forEach(p => {
+      g += '<circle cx="' + X(p.x) + '" cy="' + Y(p.y) + '" r="' + (s.dashed ? 2.5 : 4) + '" style="fill:' + s.color + ';stroke:var(--surface);stroke-width:2"/>';
+      if (p.tip) g += '<circle cx="' + X(p.x) + '" cy="' + Y(p.y) + '" r="14" fill="transparent" data-tip="' + esc(p.tip) + '"/>';
+    });
+  });
+  el.innerHTML = '<svg width="' + W + '" height="' + H + '" role="img" aria-label="' + esc(opt.label || 'chart') + '">' + g + '</svg>';
+}
+function dayIdx(d) { return diffDays(PLAN.start, d); }
+function monthTicks() {
+  const out = [];
+  let d = PLAN.start.slice(0, 8) + '01';
+  for (let i = 0; i < 6; i++) { const nd = toISO(new Date(Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1 + i, 1))); if (nd >= PLAN.start && nd <= PLAN.end) out.push({ x: dayIdx(nd), label: MONTHS[+nd.slice(5, 7) - 1] }); }
+  return out;
+}
+function drawCharts() {
+  const stats = weekStats();
+  document.querySelectorAll('[data-chart]').forEach(el => {
+    const kind = el.dataset.chart;
+    if (kind === 'adherence' || kind === 'volume') weekBars(el, stats, kind);
+    else if (kind === 'long') {
+      const pl = stats.filter(w => w.longPlanned).map(w => ({ x: w.n, y: w.longPlanned, tip: 'Week ' + w.n + ' planned: ' + w.longPlanned + ' km' }));
+      const ac = stats.filter(w => w.longActual).map(w => ({ x: w.n, y: w.longActual, tip: 'Week ' + w.n + ' long run: ' + w.longActual + ' km' }));
+      lineChart(el, { xMin: 1, xMax: PLAN.weeks.length, label: 'Long run distance by week', series: [{ color: 'var(--muted)', dashed: true, points: pl }, { color: 'var(--run)', points: ac }], xTicks: PLAN.weeks.filter(w => w.n % 2 === 1).map(w => ({ x: w.n, label: 'W' + w.n })) });
+    } else if (kind === 'lift') {
+      const pts = strengthSeries()[el.dataset.k].map(p => ({ x: dayIdx(p.d), y: p.w, tip: fmtShort(p.d) + ': ' + p.w + ' kg x ' + (p.r || '?') }));
+      lineChart(el, { xMin: 0, xMax: dayIdx(PLAN.end), height: 140, label: KEY_LIFTS[el.dataset.k] + ' top set over time', series: [{ color: 'var(--lift)', points: pts }], xTicks: monthTicks() });
+    } else if (kind === 'pull' || kind === 'push') {
+      const tests = testResults();
+      const xt = SESS.filter(s => s.test).map(s => ({ x: dayIdx(s.date), label: fmtShort(s.date) })).filter((_, i) => i % 2 === 0);
+      const series = kind === 'pull'
+        ? [{ color: 'var(--run)', points: tests.filter(x => x.t.neg).map(x => ({ x: dayIdx(x.d), y: x.t.neg, tip: fmtShort(x.d) + ': negative ' + x.t.neg + ' s' + (x.t.strict ? ', ' + x.t.strict + ' strict' : '') })) },
+           { color: 'var(--lift)', points: tests.filter(x => x.t.hang).map(x => ({ x: dayIdx(x.d), y: x.t.hang, tip: fmtShort(x.d) + ': hang ' + x.t.hang + ' s' })) }]
+        : [{ color: 'var(--run)', points: tests.filter(x => x.t.pushReps).map(x => ({ x: dayIdx(x.d), y: x.t.pushReps, tip: fmtShort(x.d) + ': ' + x.t.pushReps + ' reps at ' + ((PUSH_STEPS.find(p => p[0] === x.t.incline) || ['', 'incline ?'])[1]) })) }];
+      lineChart(el, { xMin: 0, xMax: dayIdx(PLAN.end), height: 150, label: kind === 'pull' ? 'Pull-up test results' : 'Push-up test results', series, xTicks: xt });
+    }
+  });
+}
+
+// ------------------------------------------------------------------ Settings
+function viewSettings() {
+  const on = CFG.token && CFG.gistId;
+  let h = '<h1 style="margin:4px 0 14px">Settings</h1><section class="panel" id="sync-panel"><h2>Sync phone and computer</h2><p><b>Status:</b> ' + esc(syncText()) + '</p>';
+  if (on) {
+    h += '<p>Connected to private Gist <code>' + esc(CFG.gistId.slice(0, 8)) + '...</code></p>' +
+      '<button class="btn primary" data-a="sync">Sync now</button>' +
+      '<div class="warnbox"><b>Set up your other device:</b> copy the setup code below and paste it into Settings on the other device. It contains your GitHub token, so treat it like a password. Do not post it or commit it anywhere.</div>' +
+      '<button class="btn" data-a="copy-code">Copy setup code</button>' +
+      '<details style="margin-top:8px"><summary class="small">Show setup code</summary><textarea class="code" readonly id="setup-code">' + esc(setupCode()) + '</textarea></details>' +
+      '<button class="btn danger" data-a="disconnect">Disconnect this device</button><p class="small">Disconnecting removes the token from this browser only. Your data stays here and in the Gist.</p>';
+  } else {
+    h += '<p>Your data syncs through one private file in your own GitHub account (a secret Gist). Nothing else leaves this device.</p>' +
+      '<h3 style="margin-top:12px">First device</h3><ol class="steps"><li>Create a <b>classic</b> GitHub token with only the <b>gist</b> scope (fine-grained tokens do not support Gists). See the README.</li><li>Paste it here and tap Create.</li></ol>' +
+      '<div class="stack"><input class="field" id="tok" type="password" autocomplete="off" placeholder="ghp_..." aria-label="GitHub token"><button class="btn primary" data-a="create-gist">Create sync file</button></div>' +
+      '<h3 style="margin-top:16px">Second device</h3><ol class="steps"><li>On the first device, open Settings and tap Copy setup code.</li><li>Paste it here.</li></ol>' +
+      '<div class="stack"><input class="field" id="code" type="password" autocomplete="off" placeholder="HT1-..." aria-label="Setup code"><button class="btn" data-a="connect-code">Connect</button></div>';
+  }
+  h += '</section><section class="panel"><h2>Backup</h2><p>A safety net. Import merges with what is here (newest change per field wins), so it never erases newer edits.</p>' +
+    '<button class="btn" data-a="export">Export backup (JSON)</button><button class="btn" data-a="import">Import backup</button><input type="file" id="import-file" accept="application/json,.json" class="hidden">' +
+    '<button class="btn" data-a="csv">Download my data (CSV)</button></section>';
+  const changed = Object.keys(S.records).length;
+  h += '<section class="panel"><h2>About</h2><p>Plan version ' + esc(PLAN.version) + ' · ' + SESS.length + ' sessions from ' + esc(fmtDay(PLAN.start)) + ' to ' + esc(fmtDay(PLAN.end)) + '.</p><p>' + changed + ' sessions have your changes. Data is saved in this browser and works offline.</p></section>';
+  return h;
+}
+
+// ------------------------------------------------------------------ backup / CSV
+function download(name, text, type) {
+  const blob = new Blob([text], { type });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+function exportBackup() {
+  download('hybrid-tracker-backup-' + TODAY + '.json', JSON.stringify({ app: 'hybrid-tracker', kind: 'backup', version: 1, planVersion: PLAN.version, exportedAt: new Date().toISOString(), records: S.records }, null, 1), 'application/json');
+  toast('Backup downloaded');
+}
+function importBackup(file) {
+  const fr = new FileReader();
+  fr.onload = () => {
+    try {
+      const data = JSON.parse(fr.result);
+      if (!data || typeof data.records !== 'object') throw new Error('not a backup');
+      const clean = sanitizeRecords(data.records);
+      const { merged } = mergeRecords(S.records, clean, Infinity);
+      S.records = merged;
+      bumpClock();
+      saveState();
+      CFG.dirty = true; saveCfg();
+      render();
+      toast('Imported ' + Object.keys(clean).length + ' sessions');
+      scheduleSync();
+    } catch (e) { toast('That file is not a valid backup.'); }
+  };
+  fr.readAsText(file);
+}
+function csvCell(v) { const s = v == null ? '' : String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+function exportCSV() {
+  const head = ['id', 'week', 'block', 'planned_date', 'actual_date', 'type', 'lift', 'kind', 'title', 'status', 'completed_on', 'moved_from', 'planned_km', 'planned_min', 'actual_km', 'actual_min', 'rpe', 'top_sets', 'pullup_hang_s', 'pullup_negative_s', 'pullup_band', 'pullup_strict', 'pushup_incline', 'pushup_reps', 'note'];
+  const rows = SESS.map(s => {
+    const r = rec(s.id), t = r.test || {}, w = PLAN.weeks[s.week - 1];
+    const lifts = r.lifts ? Object.keys(r.lifts).map(k => KEY_LIFTS[k] + ' ' + (r.lifts[k].w || '') + 'x' + (r.lifts[k].r || '')).join('; ') : '';
+    return [s.id, s.week, w.block, s.date, eff(s), s.type, s.lift || '', s.kind, s.title, statusOf(s), r.completedOn || '', r.movedTo && r.movedTo !== s.date ? s.date : '', s.plannedKm || '', s.plannedMin || '', r.km || '', r.min || '', r.rpe || '', lifts, t.hang || '', t.neg || '', t.band || '', t.strict == null ? '' : t.strict, t.incline || '', t.pushReps || '', r.note || ''];
+  });
+  download('hybrid-tracker-' + TODAY + '.csv', [head, ...rows].map(r => r.map(csvCell).join(',')).join('\n'), 'text/csv');
+}
+
+// ------------------------------------------------------------------ sync (private GitHub Gist)
+function sanitizeRecords(obj) {
+  const out = {};
+  if (!obj || typeof obj !== 'object') return out;
+  Object.keys(obj).forEach(id => { const r = obj[id]; if (r && typeof r === 'object' && r.t && typeof r.t === 'object') out[id] = r; });
+  return out;
+}
+const sameVal = (a, b) => JSON.stringify(a == null ? null : a) === JSON.stringify(b == null ? null : b);
+// Field-level merge: for every session and every field, the newer timestamp wins.
+// A conflict = the same field changed on both sides since the last sync, to different values.
+function mergeRecords(local, remote, since) {
+  const out = {};
+  let conflicts = 0;
+  const ids = new Set([...Object.keys(local || {}), ...Object.keys(remote || {})]);
+  ids.forEach(id => {
+    const L = local[id] || { t: {} }, R = remote[id] || { t: {} }, Lt = L.t || {}, Rt = R.t || {};
+    const m = { t: {} };
+    new Set([...Object.keys(Lt), ...Object.keys(Rt)]).forEach(k => {
+      const lt = Lt[k] || 0, rt = Rt[k] || 0, lv = L[k], rv = R[k];
+      if (lt > since && rt > since && !sameVal(lv, rv)) conflicts++;
+      const useL = lt > rt || (lt === rt && JSON.stringify(lv == null ? null : lv) >= JSON.stringify(rv == null ? null : rv));
+      m[k] = useL ? (lv === undefined ? null : lv) : (rv === undefined ? null : rv);
+      m.t[k] = useL ? lt : rt;
+    });
+    m.updatedAt = Math.max(0, ...Object.values(m.t));
+    out[id] = m;
+  });
+  return { merged: out, conflicts };
+}
+function bumpClock() { let mx = S.lastTs || 0; Object.values(S.records).forEach(r => { if (r.updatedAt > mx) mx = r.updatedAt; }); S.lastTs = mx; }
+function setupCode() { return 'HT1-' + btoa(JSON.stringify({ t: CFG.token, g: CFG.gistId })).replace(/=+$/, ''); }
+function parseSetupCode(code) {
+  const c = (code || '').trim().replace(/\s+/g, '');
+  if (!/^HT1-/.test(c)) return null;
+  try { let b = c.slice(4); while (b.length % 4) b += '='; const o = JSON.parse(atob(b)); return o.t && o.g ? o : null; } catch (e) { return null; }
+}
+async function gh(path, opts) {
+  opts = opts || {};
+  const headers = { 'Accept': 'application/vnd.github+json', 'Authorization': 'Bearer ' + CFG.token };
+  if (opts.body) headers['Content-Type'] = 'application/json';
+  const res = await fetch(API + path, { method: opts.method || 'GET', headers, body: opts.body, cache: 'no-store' });
+  if (!res.ok) { const e = new Error('HTTP ' + res.status); e.status = res.status; throw e; }
+  return res.json();
+}
+async function readRemote() {
+  const g = await gh('/gists/' + CFG.gistId);
+  const f = g.files && g.files[GIST_FILE];
+  if (!f) return { records: {} };
+  let content = f.content;
+  if (f.truncated && f.raw_url) content = await (await fetch(f.raw_url, { cache: 'no-store' })).text();
+  let data;
+  try { data = JSON.parse(content || '{}'); } catch (e) { const err = new Error('Sync file is damaged'); err.status = 'parse'; throw err; }
+  return { records: sanitizeRecords(data.records) };
+}
+function remotePayload(records) { return JSON.stringify({ app: 'hybrid-tracker', version: 1, planVersion: PLAN.version, updatedAt: new Date().toISOString(), records }); }
+async function writeRemote(records) { await gh('/gists/' + CFG.gistId, { method: 'PATCH', body: JSON.stringify({ files: { [GIST_FILE]: { content: remotePayload(records) } } }) }); }
+
+let syncTimer = null, syncAgain = false;
+function scheduleSync(ms) {
+  if (!CFG.token || !CFG.gistId) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => sync('auto'), ms == null ? 4000 : ms);
+}
+function errText(e) {
+  if (e && (e.status === 401 || e.status === 403)) return 'Token rejected. Use a classic token with the gist scope.';
+  if (e && e.status === 404) return 'Sync file not found. Check the setup code.';
+  if (e && e.status === 'parse') return 'Sync file is damaged. Your local data is safe.';
+  if (e && e.status) return 'Sync failed (' + e.status + '). Will retry.';
+  return 'Offline. Saved here, will sync later.';
+}
+async function sync(reason) {
+  if (!CFG.token || !CFG.gistId) { if (reason === 'manual') { UI.view = 'settings'; render(); toast('Set up sync first'); } return; }
+  if (UI.syncing) { syncAgain = true; return; }
+  UI.syncing = true; renderSync();
+  const wasDirty = CFG.dirty;
+  try {
+    const remote = await readRemote();
+    // Merge whatever is local right now (including edits made while we were reading).
+    const { merged, conflicts } = mergeRecords(S.records, remote.records, CFG.lastSyncMark || 0);
+    S.records = merged;
+    bumpClock();
+    saveState();
+    const afterMerge = S.lastTs;
+    if (JSON.stringify(sortObj(merged)) !== JSON.stringify(sortObj(remote.records))) await writeRemote(merged);
+    CFG.lastSyncAt = Date.now();
+    CFG.lastSyncMark = afterMerge;
+    CFG.dirty = S.lastTs !== afterMerge; // edited while uploading: push again next time
+    CFG.lastError = '';
+    saveCfg();
+    if (conflicts) toast(conflicts + ' conflicting edit' + (conflicts === 1 ? '' : 's') + ' merged (newest kept).');
+    else if (reason === 'manual') toast('Synced');
+  } catch (e) {
+    CFG.lastError = errText(e);
+    CFG.dirty = CFG.dirty || wasDirty;
+    saveCfg();
+    if (reason === 'manual') toast(CFG.lastError);
+  } finally {
+    UI.syncing = false;
+    render();
+    if (syncAgain) { syncAgain = false; scheduleSync(500); }
+  }
+}
+function sortObj(o) {
+  if (Array.isArray(o)) return o.map(sortObj);
+  if (o && typeof o === 'object') { const r = {}; Object.keys(o).sort().forEach(k => { r[k] = sortObj(o[k]); }); return r; }
+  return o;
+}
+async function createGist() {
+  const tok = ($('#tok').value || '').trim();
+  if (!tok) return toast('Paste your token first');
+  CFG.token = tok;
+  try {
+    const g = await gh('/gists', { method: 'POST', body: JSON.stringify({ description: 'Hybrid plan tracker data (private, used by the tracker app)', public: false, files: { [GIST_FILE]: { content: remotePayload(S.records) } } }) });
+    CFG.gistId = g.id; CFG.lastSyncAt = Date.now(); CFG.lastSyncMark = S.lastTs; CFG.dirty = false; CFG.lastError = '';
+    saveCfg(); render();
+    toast('Sync file created. Copy the setup code for your other device.');
+  } catch (e) {
+    CFG.token = ''; saveCfg();
+    toast(errText(e));
+  }
+}
+async function connectCode() {
+  const o = parseSetupCode($('#code').value);
+  if (!o) return toast('That setup code does not look right.');
+  CFG.token = o.t; CFG.gistId = o.g; CFG.lastSyncMark = 0; CFG.lastError = ''; saveCfg();
+  UI.view = 'today';
+  await sync('manual');
+}
+function syncText() {
+  if (UI.syncing) return 'Syncing...';
+  if (!CFG.token || !CFG.gistId) return 'Sync not set up';
+  if (CFG.lastError) return CFG.lastError;
+  if (!CFG.lastSyncAt) return 'Not synced yet';
+  return 'Synced ' + relTime(CFG.lastSyncAt) + (CFG.dirty ? ' · changes waiting' : '');
+}
+function renderSync() {
+  const el = $('#sync-status');
+  el.textContent = syncText();
+  el.className = 'sync-status' + (CFG.lastError ? ' err' : '');
+  $('#btn-sync').classList.toggle('spin', UI.syncing);
+}
+
+// ------------------------------------------------------------------ toast + tooltip
+let toastTimer = null;
+function toast(msg, undo) {
+  clearTimeout(toastTimer);
+  const root = $('#toast-root');
+  root.innerHTML = '<div class="toast" role="status"><span>' + esc(msg) + '</span>' + (undo ? '<button data-a="toast-undo">Undo</button>' : '') + '</div>';
+  root._undo = undo || null;
+  toastTimer = setTimeout(() => { root.innerHTML = ''; root._undo = null; }, undo ? 6000 : 3000);
+}
+const tipEl = () => $('#tip');
+function showTip(target, x, y) {
+  const t = tipEl();
+  t.textContent = target.getAttribute('data-tip');
+  t.style.display = 'block';
+  const r = t.getBoundingClientRect();
+  t.style.left = Math.max(8, Math.min(window.innerWidth - r.width - 8, x - r.width / 2)) + 'px';
+  t.style.top = Math.max(8, y - r.height - 12) + 'px';
+}
+document.addEventListener('pointermove', e => {
+  if (e.pointerType !== 'mouse') return;
+  const t = e.target.closest && e.target.closest('[data-tip]');
+  if (t) showTip(t, e.clientX, e.clientY); else tipEl().style.display = 'none';
+});
+let tipTimer = null;
+document.addEventListener('pointerdown', e => {
+  const t = e.target.closest && e.target.closest('[data-tip]');
+  if (!t || e.pointerType === 'mouse') return;
+  showTip(t, e.clientX, e.clientY);
+  clearTimeout(tipTimer); tipTimer = setTimeout(() => { tipEl().style.display = 'none'; }, 2500);
+});
+
+// ------------------------------------------------------------------ events
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-a]');
+  if (!b) return;
+  const a = b.dataset.a, id = b.dataset.id;
+  if (a === 'modal-bg') { if (e.target === b) { UI.move = null; closeModal(); } return; }
+  switch (a) {
+    case 'view': UI.view = b.dataset.v; if (UI.view === 'today') UI.viewDate = TODAY; if (UI.view === 'week') UI.weekN = null; render(); window.scrollTo(0, 0); break;
+    case 'day': UI.viewDate = addDays(UI.viewDate, +b.dataset.n); UI.form = null; render(); break;
+    case 'day-today': UI.viewDate = TODAY; render(); break;
+    case 'goto-day': UI.view = 'today'; UI.viewDate = b.dataset.d; UI.form = b.dataset.form || null; render(); if (b.dataset.form) { const c = document.getElementById('card-' + b.dataset.form); if (c) c.scrollIntoView({ block: 'start' }); } break;
+    case 'week': UI.weekN = Math.min(PLAN.weeks.length, Math.max(1, UI.weekN + +b.dataset.n)); render(); break;
+    case 'week-now': UI.weekN = null; render(); break;
+    case 'expand': UI.open.has(id) ? UI.open.delete(id) : UI.open.add(id); render(); break;
+    case 'done': markDone(id); break;
+    case 'undo': undoDone(id); break;
+    case 'skip': skip(id); break;
+    case 'unskip': { const before = snapshot(id, ['status']); setFields(id, { status: null }); render(); toast('Skip undone', () => { setFields(id, before); render(); }); break; }
+    case 'form': UI.form = UI.form === id ? null : id; render(); break;
+    case 'move': openMove(id); break;
+    case 'mv-pick': UI.move.date = b.dataset.d; renderMove(); break;
+    case 'mv-cancel': UI.move = null; closeModal(); break;
+    case 'mv-ok': { const d = $('#mv-date').value; if (isValidISO(d)) doMove(UI.move.id, d); break; }
+    case 'toggle-missed': { const open = UI.missedOpen === null ? missedSessions().length <= 3 : UI.missedOpen; UI.missedOpen = !open; render(); break; }
+    case 'missed-all': UI.missedAll = true; render(); break;
+    case 'skip-all': skipAllMissed(); break;
+    case 'toast-undo': { const root = $('#toast-root'); const fn = root._undo; root.innerHTML = ''; root._undo = null; if (fn) fn(); break; }
+    case 'sync': sync('manual'); break;
+    case 'create-gist': createGist(); break;
+    case 'connect-code': connectCode(); break;
+    case 'copy-code': {
+      const code = setupCode();
+      const fallback = () => { const d = document.querySelector('#sync-panel details'); if (d) d.open = true; const t = $('#setup-code'); if (t) { t.focus(); t.select(); } toast('Select and copy the code shown'); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code).then(() => toast('Setup code copied. Treat it like a password.'), fallback); else fallback();
+      break;
+    }
+    case 'disconnect': if (confirm('Disconnect this device from sync? Your data stays on this device.')) { CFG = { token: '', gistId: '', lastSyncAt: 0, lastSyncMark: 0, dirty: false, lastError: '' }; saveCfg(); render(); } break;
+    case 'export': exportBackup(); break;
+    case 'import': $('#import-file').click(); break;
+    case 'csv': exportCSV(); break;
+  }
+});
+document.addEventListener('submit', e => { if (e.target.matches('.logform')) { e.preventDefault(); saveForm(e.target); } });
+document.addEventListener('change', e => { if (e.target.id === 'import-file' && e.target.files[0]) importBackup(e.target.files[0]); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && UI.move) { UI.move = null; closeModal(); } });
+let resizeTimer = null;
+window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { if (UI.view === 'progress') drawCharts(); }, 150); });
+window.addEventListener('online', () => scheduleSync(300));
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  if (todayISO() !== TODAY && UI.viewDate === TODAY) UI.viewDate = todayISO();
+  render();
+  if (Date.now() - (CFG.lastSyncAt || 0) > 60000 || CFG.dirty) scheduleSync(300);
+});
+setInterval(renderSync, 30000);
+window.addEventListener('storage', e => { if (e.key === KEY_STATE) { S = loadJSON(KEY_STATE, S); render(); } });
+
+// ------------------------------------------------------------------ start
+render();
+scheduleSync(200);
+if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
