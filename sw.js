@@ -1,6 +1,6 @@
 // Service worker: makes the app open offline from the Home Screen.
 // VERSION is rewritten by generate.py whenever the app or plan changes.
-const VERSION = 'ht-b960afb771';
+const VERSION = 'ht-ba37ebd7c5';
 const ASSETS = [
   './',
   './index.html',
